@@ -519,6 +519,14 @@
 		       (#_CGWindowLevelForKey #$kCGFloatingWindowLevelKey)
 		       (#_CGWindowLevelForKey #$kCGNormalWindowLevelKey)))))))
 
+(defclass dpf-image-view (ns:ns-image-view)
+  ()
+  (:metaclass ns:+ns-object))
+
+(objc:defmethod (#/mouseDownCanMoveWindow #>BOOL) ((self dpf-image-view))
+  #$YES)
+  
+
 ;;; This thing has a Core Animation layer associated with it.
 ;;; The way we show slides is:
 ;;;  * create an NSImageView with the image
@@ -570,7 +578,7 @@
   (#/set (#/blackColor ns:ns-color))
   (#_NSRectFill (#/bounds self)))
 
-(objc:defmethod (#/isOpaque #>BOOL) ((self slideshow-view))
+(objc:defmethod (#/mouseDownCanMoveWindow #>BOOL) ((self slideshow-view))
   #$YES)
 
 (objc:defmethod (#/acceptsFirstResponder #>BOOL) ((self slideshow-view))
@@ -594,7 +602,7 @@
 (objc:defmethod (#/showImage: :void) ((self slideshow-view) image)
   (if (%null-ptr-p image)
     (format t "~&hey, no image here.")
-    (let ((iv (#/initWithFrame: (#/alloc ns:ns-image-view)
+    (let ((iv (#/initWithFrame: (#/alloc (objc:@class "DPFImageView"))
 				(#/bounds self))))
       (#/setImage: iv image)
       (#/setAutoresizingMask: iv (logior #$NSViewWidthSizable
@@ -745,6 +753,7 @@
 		(#/alloc (objc:@class "SlideshowWindowController"))
 		w)))
       (#/release w)
+      (#/setMovableByWindowBackground: w t)
       (#/setDelegate: w wc)
       (if (directory-pathname-p title)
 	(with-cfstring (s (native-translated-namestring title))
@@ -760,7 +769,7 @@
       (let* ((v (#/initWithFrame: (#/alloc (objc:@class "SlideshowView"))
 				  (#/bounds (#/contentView w)))))
 	(#/setAutoresizingMask: v (logior #$NSViewWidthSizable #$NSViewHeightSizable))
-	(#/addSubview: (#/contentView w) v)
+	(#/setContentView: w v)
 	(#/release v)
 	(setf (slideshow-view wc) v))
       (setq assets (sort-assets-by assets *slide-order*))
@@ -805,5 +814,6 @@
 			#'(lambda ()
 			    (wait-on-semaphore
 			     gui::*cocoa-application-finished-launching*)
-			    (init-slideshow)))
+			    (with-autorelease-pool 
+				(init-slideshow))))
   (call-next-method))
