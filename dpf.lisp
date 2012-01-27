@@ -357,13 +357,13 @@
 	     (#/setState: (#/itemWithTag: menu $keep-on-top) (if on-top-p
 							       1 0)))))
     (when (eql sender (view-menu self))
-      (let ((main-window (#/mainWindow
+      (let ((key-window (#/keyWindow
 			  (#/sharedApplication ns:ns-application)))
 	    (view-menu sender))
 	(clear-state view-menu)
-	(if (%null-ptr-p main-window)
+	(if (%null-ptr-p key-window)
 	  (set-default-state view-menu)
-	  (let ((controller (#/windowController main-window)))
+	  (let ((controller (#/windowController key-window)))
 	    (if (or (%null-ptr-p controller)
 		    (not (typep controller 'slideshow-window-controller)))
 	      (set-default-state view-menu)
@@ -374,7 +374,7 @@
 
 ;;; This is pointless right now, but if we want some custom
 ;;; window borders, then we'd do it here.
-(defclass slideshow-window (ns:ns-window)
+(defclass slideshow-window (ns:ns-panel)
   ()
   (:metaclass ns:+ns-object))
 
@@ -743,9 +743,10 @@
     (let* ((w (#/initWithContentRect:styleMask:backing:defer:
 	       (#/alloc (objc:@class "SlideshowWindow"))
 	       r
-	       (logior #$NSTitledWindowMask
+	       (logior ;#$NSHUDWindowMask
+		       #$NSUtilityWindowMask
+		       #$NSTitledWindowMask
 		       #$NSClosableWindowMask
-		       #$NSMiniaturizableWindowMask
 		       #$NSResizableWindowMask)
 	       #$NSBackingStoreBuffered
 	       #$NO))
@@ -754,6 +755,8 @@
 		w)))
       (#/release w)
       (#/setMovableByWindowBackground: w t)
+      (#/setHidesOnDeactivate: w nil)
+      (#/setFloatingPanel: w nil)
       (#/setDelegate: w wc)
       (if (directory-pathname-p title)
 	(with-cfstring (s (native-translated-namestring title))
@@ -814,6 +817,6 @@
 			#'(lambda ()
 			    (wait-on-semaphore
 			     gui::*cocoa-application-finished-launching*)
-			    (with-autorelease-pool 
+			    (objc:with-autorelease-pool 
 				(init-slideshow))))
   (call-next-method))
