@@ -2,12 +2,6 @@
   (:use "CL" "CCL")
   (:import-from "CCL" "ENSURE-DIRECTORY-PATHNAME"))
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (require 'cocoa)
-  (ccl::define-special-objc-word "DPF")
-  ;; Core Animation lives in QuartzCore
-  (objc:load-framework "QuartzCore" :quartzcore))
-
 (in-package "DPF")
 
 (defun choose-directory-dialog (dir)

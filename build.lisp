@@ -45,6 +45,7 @@
 	 (*default-pathname-defaults* *source-dir*))
     (format t "~&Building from ~s, output to ~s" *source-dir* *build-dir*)
     (ensure-directories-exist *resources-dir*)
+    (ensure-directories-exist (merge-pathnames "ccl/" *resources-dir*))
     (ensure-directories-exist *macos-dir*)
     (copy-file "Info.plist" (merge-pathnames "Info.plist" *contents-dir*)
 	       :if-exists :supersede)
@@ -63,9 +64,16 @@
 				 :type (pathname-type *.fasl-pathname*)
 				 :defaults *build-dir*)))
 	(compile-file src :output-file dst :verbose t :load t)))
-    (save-application (merge-pathnames "DPF" *macos-dir*)
-		      :prepend-kernel t
+    (copy-file (ccl::kernel-path) (merge-pathnames "DPF" *macos-dir*)
+	       :if-exists :supersede
+	       :preserve-attributes t)
+    (save-application (merge-pathnames "ccl/DPF.image" *resources-dir*)
 		      :application-class (find-symbol "DPF-APPLICATION"
 						      "DPF"))))
+
+(require 'cocoa)
+(ccl::define-special-objc-word "DPF")
+;; Core Animation lives in QuartzCore
+(objc:load-framework "QuartzCore" :quartzcore)
 
 (build-dpf)
