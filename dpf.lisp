@@ -578,6 +578,11 @@
 (objc:defmethod (#/acceptsFirstResponder #>BOOL) ((self slideshow-view))
   #$YES)
 
+(objc:defmethod (#/mouseUp: :void) ((self slideshow-view) e)
+  (if (> (#/clickCount e) 1)
+    (#/miniaturize: (#/window self) self)
+    (call-next-method e)))
+
 ;;; left/right arrow keys show the previous/next slide
 (objc:defmethod (#/keyDown: :void) ((self slideshow-view) event)
   (let* ((chars (#/charactersIgnoringModifiers event))
