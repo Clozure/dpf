@@ -299,6 +299,11 @@
 	  *slide-order* (#/integerForKey: defaults #@"order")
 	  *slide-on-top-p* (#/boolForKey: defaults #@"on-top-p"))))
 
+(objc:defmethod (#/dealloc :void) ((self dpf-controller))
+  (let ((nc (#/defaultCenter ns:ns-notification-center)))
+    (#/removeObserver: nc self))
+  (call-next-method))
+
 (defconstant $from-folder-tag 0)
 (defconstant $from-iphoto-tag 1)
 
@@ -319,6 +324,76 @@
     (if album
       (make-slideshow-from-album album)
       (#_NSBeep))))
+
+(defparameter *saved-state-directory*
+  #p"home:Library;Application Support;Digital Photo Frame;")
+
+(defparameter *saved-state-filename* "dpf-state.sexp")
+
+(defparameter *restoring-slideshow-state* nil
+  "bound to t when restoring slideshow state")
+
+(defun save-slideshow-state ()
+  (let ((path *saved-state-directory*))
+    (unless (probe-file path)
+      (ensure-directories-exist path))
+    (if (not (directoryp path))
+      (with-cstrs ((s path))
+	(#_NSLog #@"Path %s is not a directory, not saving state."
+		 :address s))
+      (let ((slideshows (slideshow-window-controllers)))
+	(with-open-file (output (merge-pathnames *saved-state-filename* path)
+				:direction :output :if-exists :supersede)
+	  (with-standard-io-syntax
+	    (dolist (s slideshows)
+	      (print (list (slideshow-source s)
+			   (slideshow-duration s)
+			   (slideshow-transition s)
+			   (slideshow-order s)
+			   (slideshow-on-top-p s)
+			   (slideshow-current-index s))
+		     output))))))))
+
+(defun restore-slideshow (state)
+  (destructuring-bind (source duration transition order on-top-p current-index)
+      state
+    (if (and (member duration *valid-durations*)
+	     (member transition *valid-transitions*)
+	     (member order *valid-orders*)
+	     (typep on-top-p 'boolean)
+	     (typep current-index '(integer 0)))
+      (let ((plist (list :duration duration :transition transition
+			 :order order :on-top-p on-top-p
+			 :current-index current-index)))
+	(if (pathnamep source)
+	  (make-slideshow-from-folder source plist)
+	  (let ((album (find source (iphoto-library-albums *iphoto-library*)
+			     :key #'iphoto-album-name
+			     :test #'string=)))
+	    (when album
+	      (make-slideshow-from-album album plist))))))))
+
+(defun restore-slideshow-state ()
+  (let ((path (merge-pathnames *saved-state-filename* *saved-state-directory*)))
+    (if (gui::shift-key-now-p)
+      (ignore-errors (delete-file path))
+      (when (probe-file path)
+	(with-open-file (input path)
+	  (with-standard-io-syntax
+	    (let ((*read-eval* nil)
+		  (*restoring-slideshow-state* t))
+	      (loop for x = (read input nil)
+		    while x
+		    do (restore-slideshow x)))))))))
+  
+(objc:defmethod (#/applicationWillTerminate: :void) ((self dpf-controller)
+						     notification)
+  (declare (ignore notification))
+  (multiple-value-bind (result condition)
+      (ignore-errors (save-slideshow-state))
+    (declare (ignore result))
+    (if condition
+      (ignore-errors (delete-directory *saved-state-directory*)))))
 
 (objc:defmethod (#/showPreferences: :void) ((self dpf-controller) sender)
   (declare (ignore sender))
@@ -364,7 +439,12 @@
 	      (set-state-from-controller view-menu controller))))))))
 	      
 (defun init-dpf-controller ()
-  (setq *dpf-controller* (make-instance 'dpf-controller)))
+  (setq *dpf-controller* (make-instance 'dpf-controller))
+  (let ((nc (#/defaultCenter ns:ns-notification-center)))
+    (#/addObserver:selector:name:object:
+     nc *dpf-controller* (objc:@selector #/applicationWillTerminate:)
+     #&NSApplicationWillTerminateNotification +null-ptr+)))
+
 
 ;;; This is pointless right now, but if we want some custom
 ;;; window borders, then we'd do it here.
@@ -381,7 +461,8 @@
    (order :initform $order-by-name :accessor slideshow-order)
    (on-top-p :initform nil :accessor slideshow-on-top-p)
    (assets :initform nil :accessor slideshow-assets)
-   (current-index :initform 0 :accessor slideshow-current-index))
+   (current-index :initform 0 :accessor slideshow-current-index)
+   (source :initform nil :accessor slideshow-source))
   (:metaclass ns:+ns-object))
 
 ;;; This could also be done in an #/initWithWindow: override
@@ -512,6 +593,16 @@
 		     (if on-top-p
 		       (#_CGWindowLevelForKey #$kCGFloatingWindowLevelKey)
 		       (#_CGWindowLevelForKey #$kCGNormalWindowLevelKey)))))))
+
+(defun slideshow-window-controllers ()
+  (let ((array (#/windows (#/sharedApplication ns:ns-application)))
+	(controllers nil))
+    (dotimes (i (#_CFArrayGetCount array) controllers)
+      (let* ((w (#_CFArrayGetValueAtIndex array i))
+	     (wc (#/windowController w)))
+	(when (typep wc 'slideshow-window-controller)
+	  (push wc controllers))))))
+
 
 (defclass dpf-image-view (ns:ns-image-view)
   ()
@@ -735,9 +826,10 @@
   (gui::execute-in-gui #'(lambda ()
 			   (retarget-preferences-menu-item)
 			   (make-view-menu)
-                           (add-slideshow-menu))))
+                           (add-slideshow-menu)
+			   (restore-slideshow-state))))
 
-(defun make-slideshow (assets title)
+(defun make-slideshow (assets title source &optional plist)
   (ns:with-ns-rect (r 0 0 500 310)
     (let* ((w (#/initWithContentRect:styleMask:backing:defer:
 	       (#/alloc (objc:@class "SlideshowWindow"))
@@ -774,36 +866,54 @@
 	(#/setContentView: w v)
 	(#/release v)
 	(setf (slideshow-view wc) v))
+      (setf (slideshow-source wc) source)
+      (when plist
+	(let (val)
+	  (when (setq val (getf plist :duration))
+	    (setf (slideshow-duration wc) val))
+	  (when (setq val (getf plist :transition))
+	    (setf (slideshow-transition wc) val)
+	    (#/setTransition: (slideshow-view wc) val))
+	  (when (setq val (getf plist :order))
+	    (setf (slideshow-order wc) val))
+	  (when (setq val (getf plist :on-top-p))
+	    (setf (slideshow-on-top-p wc) val))
+	  (when (and (setq val (getf plist :current-index))
+		     (< (length (slideshow-assets wc)) val))
+	    (setf (slideshow-current-index wc) val))))
       (setq assets (sort-assets-by assets *slide-order*))
       (setf (slideshow-assets wc) assets)
       (#/showWindow: wc +null-ptr+)
       (#/advanceSlideBy: wc 0)
       (#/startTimer wc))))
 
-(defun make-slideshow-from-folder (dir)
+(defun make-slideshow-from-folder (dir &optional plist)
   (let ((image-pathnames (image-files-in-directory dir)))
     (if (null image-pathnames)
-      (let ((message (format nil "No readable image files were found in \"~a\"" (native-translated-namestring dir))))
-	(with-cfstring (m message)
-	  (#_NSRunAlertPanel #@"No Images Found" m
-			     #@"OK" +null-ptr+ +null-ptr+)))
+      (unless *restoring-slideshow-state*
+	(let ((message (format nil "No readable image files were found in \"~a\"" (native-translated-namestring dir))))
+	  (with-cfstring (m message)
+	    (#_NSRunAlertPanel #@"No Images Found" m
+			       #@"OK" +null-ptr+ +null-ptr+))))
       (let ((assets (make-array (length image-pathnames))))
 	(map-into assets #'(lambda (p)
 			     (make-instance 'asset :pathname p
 					    :date (file-write-date p)))
 		  image-pathnames)
-	(make-slideshow assets dir)))))
+	(make-slideshow assets dir dir plist)))))
 
-(defun make-slideshow-from-album (album)
+(defun make-slideshow-from-album (album &optional plist)
   (let ((photos (iphoto-album-photos album)))
     (if (null photos)
-      (let ((message (format nil "No photos were found in the album \"~a\""
-			     (iphoto-album-name album))))
-	(with-cfstring (m message)
-	  (#_NSRunAlertPanel #@"No Images Found" m
-			     #@"OK" +null-ptr+ +null-ptr+)))
+      (unless *restoring-slideshow-state*
+	(let ((message (format nil "No photos were found in the album \"~a\""
+			       (iphoto-album-name album))))
+	  (with-cfstring (m message)
+	    (#_NSRunAlertPanel #@"No Images Found" m
+			       #@"OK" +null-ptr+ +null-ptr+))))
       (let ((assets (coerce photos 'vector)))
-	(make-slideshow assets (iphoto-album-name album))))))
+	(make-slideshow assets (iphoto-album-name album)
+			(iphoto-album-name album) plist)))))
 
 ;;; hack-o-rama.  better than having to alter the ide sources, though.
 
