@@ -86,10 +86,10 @@
 	((= code $transition-push) #&kCATransitionPush)
 	((= code $transition-reveal) #&kCATransitionReveal)))
 
-(defparameter *slide-duration* $2-seconds)
-(defparameter *slide-order* $order-by-name)
-(defparameter *slide-transition* $transition-fade)
-(defparameter *slide-on-top-p* nil)
+(defvar *slide-duration*)
+(defvar *slide-order*)
+(defvar *slide-transition*)
+(defvar *slide-on-top-p*)
 
 (defclass dpf-preferences-controller (ns:ns-window-controller)
   ((order-popup :foreign-type :id :accessor order-popup)
@@ -284,7 +284,7 @@
   (let ((defaults (#/standardUserDefaults ns:ns-user-defaults))
 	(dict (#/dictionaryWithObjectsAndKeys:
 	       ns:ns-dictionary
-	       (#/numberWithInt: ns:ns-number $2-seconds)
+	       (#/numberWithInt: ns:ns-number $5-seconds)
 	       #@"duration"
 	       (#/numberWithInt: ns:ns-number $transition-fade)
 	       #@"transition"
@@ -456,10 +456,10 @@
 (defclass slideshow-window-controller (ns:ns-window-controller)
   ((view :foreign-type :id :accessor slideshow-view)
    (timer :foreign-type :id :accessor slideshow-timer)
-   (duration :initform $2-seconds :accessor slideshow-duration)
-   (transition :initform $transition-fade :accessor slideshow-transition)
-   (order :initform $order-by-name :accessor slideshow-order)
-   (on-top-p :initform nil :reader slideshow-on-top-p)
+   (duration :accessor slideshow-duration)
+   (transition :accessor slideshow-transition)
+   (order :accessor slideshow-order)
+   (on-top-p :reader slideshow-on-top-p)
    (assets :initform nil :accessor slideshow-assets)
    (current-index :initform 0 :accessor slideshow-current-index)
    (source :initform nil :accessor slideshow-source))
