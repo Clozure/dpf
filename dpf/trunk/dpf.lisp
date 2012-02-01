@@ -459,7 +459,7 @@
    (duration :initform $2-seconds :accessor slideshow-duration)
    (transition :initform $transition-fade :accessor slideshow-transition)
    (order :initform $order-by-name :accessor slideshow-order)
-   (on-top-p :initform nil :accessor slideshow-on-top-p)
+   (on-top-p :initform nil :reader slideshow-on-top-p)
    (assets :initform nil :accessor slideshow-assets)
    (current-index :initform 0 :accessor slideshow-current-index)
    (source :initform nil :accessor slideshow-source))
@@ -477,6 +477,18 @@
     (when on-top-p
       (#/setLevel: (#/window x)
 		   (#_CGWindowLevelForKey #$kCGFloatingWindowLevelKey)))))
+
+(defmethod (setf slideshow-on-top-p) (new (x slideshow-window-controller))
+  (with-slots (on-top-p) x
+    (unless (eq new on-top-p)
+      (setf on-top-p new)
+      ;; Weird C Preprocessor Tricks prevent the interface
+      ;; translator from figuring out what #$NSNormalWindowLevel etc.
+      ;; should be.  (See CGWindow.h)
+      (#/setLevel: (#/window x)
+		   (if on-top-p
+		     (#_CGWindowLevelForKey #$kCGFloatingWindowLevelKey)
+		     (#_CGWindowLevelForKey #$kCGNormalWindowLevelKey))))))
 
 (objc:defmethod (#/dealloc :void) ((self slideshow-window-controller))
   ;;(#_NSLog #@"slideshow-window-controller dealloc")
@@ -580,19 +592,8 @@
 
 (objc:defmethod (#/changeOnTop: :void) ((self slideshow-window-controller)
 					sender)
-  (let ((tag (#/tag sender))
-	(window (#/window self)))
-    (when (= tag $keep-on-top)
-      (with-slots (on-top-p) self
-	;; toggle floating/normal state
-	(setq on-top-p (not on-top-p))
-	;; Weird C Preprocessor Tricks prevent the interface
-	;; translator from figuring out what #$NSNormalWindowLevel etc.
-	;; should be.  (See CGWindow.h)
-	(#/setLevel: window 
-		     (if on-top-p
-		       (#_CGWindowLevelForKey #$kCGFloatingWindowLevelKey)
-		       (#_CGWindowLevelForKey #$kCGNormalWindowLevelKey)))))))
+  (when (= (#/tag sender) $keep-on-top)
+    (setf (slideshow-on-top-p self) (not (slideshow-on-top-p self)))))
 
 (defun slideshow-window-controllers ()
   (let ((array (#/windows (#/sharedApplication ns:ns-application)))
