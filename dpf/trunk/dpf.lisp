@@ -395,6 +395,13 @@
     (if condition
       (ignore-errors (delete-directory *saved-state-directory*)))))
 
+(objc:defmethod (#/applicationDidBecomeActive: :void) ((self dpf-controller)
+						       notification)
+  (declare (ignore notification))
+  ;;(#_NSLog #@"applicationDidBecomeActive:")
+  (dolist (wc (slideshow-window-controllers))
+    (#/setAlphaValue: (#/window wc) (float 1.0 ccl::+cgfloat-zero+))))
+
 (objc:defmethod (#/showPreferences: :void) ((self dpf-controller) sender)
   (declare (ignore sender))
   (when (%null-ptr-p *preferences-controller*)
@@ -443,7 +450,10 @@
   (let ((nc (#/defaultCenter ns:ns-notification-center)))
     (#/addObserver:selector:name:object:
      nc *dpf-controller* (objc:@selector #/applicationWillTerminate:)
-     #&NSApplicationWillTerminateNotification +null-ptr+)))
+     #&NSApplicationWillTerminateNotification +null-ptr+)
+    (#/addObserver:selector:name:object:
+     nc *dpf-controller* (objc:@selector #/applicationDidBecomeActive:)
+     #&NSApplicationDidBecomeActiveNotification +null-ptr+)))
 
 
 ;;; This is pointless right now, but if we want some custom
@@ -636,19 +646,61 @@
 ;;;; to an appropriate CAAnimation instance.  We use a fade in.
 
 (defclass slideshow-view (ns:ns-view)
-  ((image-view :accessor image-view :foreign-type :id))
+  ((image-view :accessor image-view :foreign-type :id)
+   (tracking-area :accessor tracking-area :foreign-type :id))
   (:metaclass ns:+ns-object))
 
 (objc:defmethod #/initWithFrame: ((self slideshow-view) (frame #>NSRect))
   (call-next-method frame)
   (#/setWantsLayer: self #$YES)
   (#/setTransition: self *slide-transition*)
+  (let* ((ta (#/initWithRect:options:owner:userInfo:
+	      (#/alloc ns:ns-tracking-area)
+	      frame
+	      (logior #$NSTrackingMouseEnteredAndExited
+		      #$NSTrackingActiveAlways
+		      #$NSTrackingEnabledDuringMouseDrag)
+	      self
+	      +null-ptr+)))
+    (#/addTrackingArea: self ta)
+    (setf (tracking-area self) ta))
   self)
+
+(objc:defmethod (#/updateTrackingAreas :void) ((self slideshow-view))
+  ;;(#_NSLog #@"updateTrackingAreas")
+  (let* ((ta (#/initWithRect:options:owner:userInfo:
+	      (#/alloc ns:ns-tracking-area)
+	      (#/bounds self)
+	      (logior #$NSTrackingMouseEnteredAndExited
+		      #$NSTrackingActiveAlways
+		      #$NSTrackingEnabledDuringMouseDrag)
+	      self
+	      +null-ptr+)))
+    (#/removeTrackingArea: self (tracking-area self))
+    (#/release (tracking-area self))
+    (setf (tracking-area self) ta)
+    (#/addTrackingArea: self ta)))
+
+(objc:defmethod (#/mouseEntered: :void) ((self slideshow-view) e)
+  (declare (ignore e))
+  ;;(#_NSLog #@"mouseEntered:")
+  (let* ((w (#/window self))
+	 (wc (#/windowController w)))
+    (when (and (slideshow-on-top-p wc)
+	       (not (#/isActive (#/sharedApplication ns:ns-application))))
+      (#/setAlphaValue: (#/animator w) (float 0.1 ccl::+cgfloat-zero+)))))
+
+(objc:defmethod (#/mouseExited: :void) ((self slideshow-view) e)
+  (declare (ignore e))
+  ;;(#_NSLog #@"mouseExited:")
+  (let* ((w (#/window self)))
+    (#/setAlphaValue: (#/animator w) (float 1.0 ccl::+cgfloat-zero+))))
 
 (objc:defmethod (#/dealloc :void) ((self slideshow-view))
   ;;(#_NSLog #@"slideshow-view dealloc")
-  (with-slots (image-view) self
-    (#/release image-view))
+  (with-slots (image-view tracking-area) self
+    (#/release image-view)
+    (#/release tracking-area))
   (call-next-method))
 
 (objc:defmethod (#/setTransition: :void) ((self slideshow-view)
@@ -671,6 +723,7 @@
   #$YES)
 
 (objc:defmethod (#/mouseUp: :void) ((self slideshow-view) e)
+  ;;(#_NSLog #@"mouseUp:")
   (if (> (#/clickCount e) 1)
     (#/miniaturize: (#/window self) self)
     (call-next-method e)))
