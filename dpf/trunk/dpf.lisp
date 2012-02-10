@@ -4,15 +4,17 @@
 
 (in-package "DPF")
 
-(defun choose-directory-dialog (dir)
+(defun choose-directory-dialog (&optional dir)
   (gui::execute-in-gui
    #'(lambda ()
        (let ((op (#/openPanel ns:ns-open-panel)))
          (#/setAllowsMultipleSelection: op nil)
          (#/setCanChooseDirectories: op t)
          (#/setCanChooseFiles: op nil)
-         (with-cfurl (u dir)
-           (#/setDirectoryURL: op u))
+	 (#/setDirectoryURL: op +null-ptr+)
+	 (when dir
+	   (with-cfurl (u dir)
+	     (#/setDirectoryURL: op u)))
          (when (eql (#/runModalForTypes: op +null-ptr+) #$NSOKButton)
            (let* ((u (#/directoryURL op))
                   (path (#_CFURLCopyFileSystemPath u #$kCFURLPOSIXPathStyle)))
@@ -310,7 +312,7 @@
 (objc:defmethod (#/newSlideshow: :void) ((self dpf-controller) sender)
   (let ((tag (#/tag sender)))
     (cond ((= tag $from-folder-tag)
-	   (let ((dir (choose-directory-dialog "~/Pictures/")))
+	   (let ((dir (choose-directory-dialog)))
 	     (when dir
 	       (make-slideshow-from-folder dir))))
 	  ((= tag $from-iphoto-tag)
