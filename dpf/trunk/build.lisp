@@ -49,6 +49,8 @@
     (ensure-directories-exist *macos-dir*)
     (copy-file "Info.plist" (merge-pathnames "Info.plist" *contents-dir*)
 	       :if-exists :supersede)
+    (copy-file "Credits.html" (merge-pathnames "Credits.html" *resources-dir*)
+	       :if-exists :supersede)
     (dolist (x (directory (merge-pathnames "en.lproj/*.xib")))
       (let ((dest (make-pathname :name (pathname-name x)
 				 :type "nib"
