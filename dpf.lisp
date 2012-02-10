@@ -290,7 +290,7 @@
 	       #@"transition"
 	       (#/numberWithInt: ns:ns-number $order-by-name)
 	       #@"order"
-	       (#/numberWithBool: ns:ns-number nil)
+	       (#/numberWithBool: ns:ns-number t)
 	       #@"on-top-p"
 	       +null-ptr+)))
     (#/registerDefaults: defaults dict)
@@ -456,8 +456,7 @@
      #&NSApplicationDidBecomeActiveNotification +null-ptr+)))
 
 
-;;; This is pointless right now, but if we want some custom
-;;; window borders, then we'd do it here.
+;;; This is a panel so we can get the small title bar.
 (defclass slideshow-window (ns:ns-panel)
   ()
   (:metaclass ns:+ns-object))
