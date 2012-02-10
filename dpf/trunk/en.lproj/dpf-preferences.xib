@@ -45,12 +45,12 @@
 				<string key="NSClassName">NSApplication</string>
 			</object>
 			<object class="NSWindowTemplate" id="159927010">
-				<int key="NSWindowStyleMask">15</int>
+				<int key="NSWindowStyleMask">3</int>
 				<int key="NSWindowBacking">2</int>
-				<string key="NSWindowRect">{{196, 240}, {311, 178}}</string>
+				<string key="NSWindowRect">{{196, 240}, {311, 212}}</string>
 				<int key="NSWTFlags">544735232</int>
 				<string key="NSWindowTitle">Preferences</string>
-				<string key="NSWindowClass">NSWindow</string>
+				<string key="NSWindowClass">NSPanel</string>
 				<nil key="NSViewClass"/>
 				<nil key="NSUserInterfaceItemIdentifier"/>
 				<object class="NSView" key="NSWindowView" id="198707145">
@@ -61,7 +61,7 @@
 						<object class="NSTextField" id="22935412">
 							<reference key="NSNextResponder" ref="198707145"/>
 							<int key="NSvFlags">268</int>
-							<string key="NSFrame">{{17, 151}, {263, 17}}</string>
+							<string key="NSFrame">{{17, 151}, {277, 51}}</string>
 							<reference key="NSSuperview" ref="198707145"/>
 							<reference key="NSWindow"/>
 							<reference key="NSNextKeyView" ref="621513390"/>
@@ -71,7 +71,7 @@
 							<object class="NSTextFieldCell" key="NSCell" id="546577416">
 								<int key="NSCellFlags">67239424</int>
 								<int key="NSCellFlags2">272629760</int>
-								<string key="NSContents">Slideshows will begin with these options.</string>
+								<string key="NSContents">New slideshows will begin with these options.  (Use the View menu to change existing slideshows.)</string>
 								<object class="NSFont" key="NSSupport">
 									<string key="NSName">LucidaGrande</string>
 									<double key="NSSize">13</double>
@@ -226,7 +226,7 @@
 										<object class="NSTextField" id="19097232">
 											<reference key="NSNextResponder" ref="335612825"/>
 											<int key="NSvFlags">268</int>
-											<string key="NSFrame">{{44, 97}, {83, 17}}</string>
+											<string key="NSFrame">{{34, 97}, {93, 17}}</string>
 											<reference key="NSSuperview" ref="335612825"/>
 											<reference key="NSWindow"/>
 											<reference key="NSNextKeyView" ref="860193503"/>
@@ -235,7 +235,7 @@
 											<object class="NSTextFieldCell" key="NSCell" id="194176003">
 												<int key="NSCellFlags">68288064</int>
 												<int key="NSCellFlags2">272630784</int>
-												<string key="NSContents">Photo order:</string>
+												<string key="NSContents">Order photos:</string>
 												<reference key="NSSupport" ref="1063580104"/>
 												<string key="NSCellIdentifier">_NS:3944</string>
 												<reference key="NSControlView" ref="19097232"/>
@@ -465,7 +465,7 @@
 											<string key="NSReuseIdentifierKey">_NS:771</string>
 											<bool key="NSEnabled">YES</bool>
 											<object class="NSButtonCell" key="NSCell" id="357878628">
-												<int key="NSCellFlags">67239424</int>
+												<int key="NSCellFlags">-2080244224</int>
 												<int key="NSCellFlags2">0</int>
 												<string key="NSContents">Keep slideshow window on top</string>
 												<reference key="NSSupport" ref="1063580104"/>
@@ -530,7 +530,7 @@
 							<bool key="NSTransparent">NO</bool>
 						</object>
 					</object>
-					<string key="NSFrameSize">{311, 178}</string>
+					<string key="NSFrameSize">{311, 212}</string>
 					<reference key="NSSuperview"/>
 					<reference key="NSWindow"/>
 					<reference key="NSNextKeyView" ref="22935412"/>
@@ -659,8 +659,8 @@
 						<reference key="object" ref="198707145"/>
 						<object class="NSMutableArray" key="children">
 							<bool key="EncodedWithXMLCoder">YES</bool>
-							<reference ref="22935412"/>
 							<reference ref="621513390"/>
+							<reference ref="22935412"/>
 						</object>
 						<reference key="parent" ref="159927010"/>
 					</object>
