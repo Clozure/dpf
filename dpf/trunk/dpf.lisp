@@ -769,15 +769,15 @@
          (item nil))
     (setq item (#/insertItemWithTitle:action:keyEquivalent:atIndex:
                 file-menu
-                #@"Slideshow From Folder..."
+                #@"New Slideshow From Folder..."
                 (objc:@selector #/newSlideshow:)
-                #@""
+                #@"n"
                 0))
     (#/setTag: item $from-folder-tag)
     (#/setTarget: item *dpf-controller*)
     (setq item (#/insertItemWithTitle:action:keyEquivalent:atIndex:
 		file-menu
-		#@"Slideshow From iPhoto Album"
+		#@"New Slideshow From iPhoto Album"
 		+null-ptr+
 		#@""
 		1))
