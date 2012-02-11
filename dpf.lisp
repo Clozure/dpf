@@ -910,13 +910,13 @@
 	  (#/setFrameAutosaveName: w s)
 	  (unless (#/setFrameUsingName: w s)
 	    ;; lower left corner
-	    (#/setFrameOrigin: w #&NSZeroPoint))
+	    (#/setFrameOrigin: w #&NSZeroPoint)))
 	(with-cfstring (s (native-translated-namestring title))
 	  (#/setTitle: w s)
 	  (#/setFrameAutosaveName: w s)
 	  (unless (#/setFrameUsingName: w s)
 	    ;; lower left corner
-	    (#/setFrameOrigin: w #&NSZeroPoint)))))
+	    (#/setFrameOrigin: w #&NSZeroPoint))))
       (let* ((v (#/initWithFrame: (#/alloc (objc:@class "SlideshowView"))
 				  (#/bounds (#/contentView w)))))
 	(#/setAutoresizingMask: v (logior #$NSViewWidthSizable #$NSViewHeightSizable))
