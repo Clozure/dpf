@@ -541,8 +541,8 @@
   (#/stopTimer self)
   (#/autorelease self))
 
-(objc:defmethod (#/setDuration: :void) ((self slideshow-window-controller)
-                                        (duration :int))
+(objc:defmethod (#/setSlideshowDuration: :void) ((self slideshow-window-controller)
+						 (duration :int))
   (#/stopTimer self)
   (setf (slideshow-duration self) duration)
   (#/startTimer self))
@@ -718,6 +718,7 @@
 (objc:defmethod (#/setTransition: :void) ((self slideshow-view)
 					  (transition-code #>NSInteger))
   (let ((transition (#/animation ns:ca-transition)))
+    (#/setDuration: transition 1d0)
     (#/setType: transition (transition-code-to-type transition-code))
     (#/setSubtype: transition #&kCATransitionFromLeft)
     (#/setAnimations: self (#/dictionaryWithObject:forKey: ns:ns-dictionary
@@ -748,10 +749,10 @@
          (wc (#/windowController (#/window self))))
     (cond ((= unichar #$NSLeftArrowFunctionKey)
            (#/advanceSlideBy: wc -1)
-           (#/setDuration: wc (slideshow-duration wc)))
+           (#/setSlideshowDuration: wc (slideshow-duration wc)))
           ((= unichar #$NSRightArrowFunctionKey)
            (#/advanceSlideBy: wc 1)
-           (#/setDuration: wc (slideshow-duration wc)))
+           (#/setSlideshowDuration: wc (slideshow-duration wc)))
           (t 
            (#_NSBeep)))))
   
