@@ -881,14 +881,23 @@
     (#/setAction: prefs-item (objc:@selector #/showPreferences:))
     (#/setTarget: prefs-item *dpf-controller*)))
 
+(defun iphoto-root-directory ()
+  (let ((p (#_CFPreferencesCopyAppValue #@"RootDirectory"
+					#@"com.apple.iPhoto")))
+    (if (%null-ptr-p p)
+      (truename "~/Pictures/iPhoto Library/")
+      (prog1
+	  (truename (%get-cfstring p))
+	(#_CFRelease p)))))
+
 (defun init-slideshow ()
   (init-supported-image-types)
   (init-dpf-controller)
   (setq *iphoto-library*
 	(make-instance 'iphoto-library
 		       :album-data-pathname
-		       (merge-pathnames "Pictures/iPhoto Library/AlbumData.xml"
-					(user-homedir-pathname))))
+		       (merge-pathnames "AlbumData.xml"
+					(iphoto-root-directory))))
   (gui::execute-in-gui #'(lambda ()
 			   (retarget-preferences-menu-item)
 			   (make-view-menu)
