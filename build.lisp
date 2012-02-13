@@ -15,6 +15,9 @@
 
 (defvar *ibtool-program* "/Developer/usr/bin/ibtool")
 
+(defparameter *resource-files* '("Credits.html"
+				 "DPF.icns"))
+
 (defun compile-xib (xib &optional output-nib)
   (unless output-nib
     (setq output-nib (make-pathname :type "nib" :defaults xib)))
@@ -49,14 +52,15 @@
     (ensure-directories-exist *macos-dir*)
     (copy-file "Info.plist" (merge-pathnames "Info.plist" *contents-dir*)
 	       :if-exists :supersede)
-    (copy-file "Credits.html" (merge-pathnames "Credits.html" *resources-dir*)
-	       :if-exists :supersede)
     (dolist (x (directory (merge-pathnames "en.lproj/*.xib")))
       (let ((dest (make-pathname :name (pathname-name x)
 				 :type "nib"
 				 :defaults (merge-pathnames "en.lproj"
 							    *resources-dir*))))
 	(compile-xib x dest)))
+    (dolist (f *resource-files*)
+      (copy-file f (merge-pathnames f *resources-dir*)
+		 :if-exists :supersede))
     (dolist (f *dpf-files*)
       (let* ((src (make-pathname :name f
 				 :type (pathname-type *.lisp-pathname*)
