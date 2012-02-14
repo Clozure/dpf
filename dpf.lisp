@@ -138,6 +138,44 @@
 	     (#/setBool:forKey: defaults new-state #@"on-top-p"))))))
 
 
+(defvar *help-window-controller* nil)
+
+(defclass dpf-help-window-controller (ns:ns-window-controller)
+  ((checkbox :foreign-type :id)
+   (text-view :foreign-type :id))
+  (:metaclass ns:+ns-object))
+
+(objc:defmethod #/init ((self dpf-help-window-controller))
+  (#/initWithWindowNibName: self #@"help"))
+
+(objc:defmethod (#/windowDidLoad :void) ((self dpf-help-window-controller))
+  (let* ((defaults (#/standardUserDefaults ns:ns-user-defaults))
+	 (show-window (#/boolForKey: defaults #@"show-help-window"))
+	 (bundle (#/mainBundle ns:ns-bundle))
+	 (url (#/URLForResource:withExtension: bundle #@"help" #@"html")))
+  (#/setState: (slot-value self 'checkbox)
+	       (if show-window #$NSOnState #$NSOffState))
+  (#/center (#/window self))
+  (unless (%null-ptr-p url)
+    (let ((string (#/initWithURL:documentAttributes:
+		   (#/alloc ns:ns-attributed-string)
+		   url
+		   +null-ptr+))
+	  (text-storage (#/textStorage (slot-value self 'text-view))))
+      (#/setAttributedString: text-storage string)
+      (#/release string)))))
+
+(objc:defmethod (#/closeHelpWindow: :void) ((self dpf-help-window-controller)
+					    sender)
+  (declare (ignore sender))
+  (#/close (#/window self)))
+
+(objc:defmethod (#/toggleHelpWindowCheckbox: :void)
+    ((self dpf-help-window-controller) sender)
+  (let ((state (#/state sender))
+	(defaults (#/standardUserDefaults ns:ns-user-defaults)))
+    (#/setBool:forKey: defaults state #@"show-help-window")))
+
 ;;; We go to some trouble here to determine whether the system knows
 ;;; how to display a particular image file format.
 ;;;
@@ -294,6 +332,8 @@
 	       #@"order"
 	       (#/numberWithBool: ns:ns-number t)
 	       #@"on-top-p"
+	       (#/numberWithBool: ns:ns-number t)
+	       #@"show-help-window"
 	       +null-ptr+)))
     (#/registerDefaults: defaults dict)
     (setq *slide-duration* (#/integerForKey: defaults #@"duration")
@@ -327,6 +367,13 @@
       (make-slideshow-from-album album)
       (#_NSBeep))))
 
+(objc:defmethod (#/showHelpWindow: :void) ((self dpf-controller) sender)
+  (declare (ignore sender))
+  (when (null *help-window-controller*)
+    (setq *help-window-controller*
+	  (#/init (#/alloc (objc:@class "DPFHelpWindowController")))))
+  (#/showWindow: *help-window-controller* +null-ptr+))
+
 (defparameter *saved-state-directory*
   #p"home:Library;Application Support;Digital Photo Frame;")
 
@@ -334,6 +381,17 @@
 
 (defparameter *restoring-slideshow-state* nil
   "bound to t when restoring slideshow state")
+
+(defun maybe-show-help-window ()
+  (let ((defaults (#/standardUserDefaults ns:ns-user-defaults)))
+    (when (#/boolForKey: defaults #@"show-help-window")
+      (#/showHelpWindow: *dpf-controller* +null-ptr+)))
+  #+nil
+  (unless (probe-file (merge-pathnames *saved-state-filename*
+				       *saved-state-directory*))
+    (let ((defaults (#/standardUserDefaults ns:ns-user-defaults)))
+      (when (#/boolForKey: defaults #@"show-help-window")
+	(#/showHelpWindow: *dpf-controller* +null-ptr+)))))
 
 (defun save-slideshow-state ()
   (let ((path *saved-state-directory*))
@@ -344,17 +402,20 @@
 	(#_NSLog #@"Path %s is not a directory, not saving state."
 		 :address s))
       (let ((slideshows (slideshow-window-controllers)))
-	(with-open-file (output (merge-pathnames *saved-state-filename* path)
-				:direction :output :if-exists :supersede)
-	  (with-standard-io-syntax
-	    (dolist (s slideshows)
-	      (print (list (slideshow-source s)
-			   (slideshow-duration s)
-			   (slideshow-transition s)
-			   (slideshow-order s)
-			   (slideshow-on-top-p s)
-			   (slideshow-current-index s))
-		     output))))))))
+	(if (null slideshows)
+	  (ignore-errors
+	    (delete-file (merge-pathnames *saved-state-filename* path)))
+	  (with-open-file (output (merge-pathnames *saved-state-filename* path)
+				  :direction :output :if-exists :supersede)
+	    (with-standard-io-syntax
+	      (dolist (s slideshows)
+		(print (list (slideshow-source s)
+			     (slideshow-duration s)
+			     (slideshow-transition s)
+			     (slideshow-order s)
+			     (slideshow-on-top-p s)
+			     (slideshow-current-index s))
+		       output)))))))))
 
 (defun restore-slideshow (state)
   (destructuring-bind (source duration transition order on-top-p current-index)
@@ -805,6 +866,13 @@
 		  2))
       (#/setTarget: item *dpf-controller*))))
 
+(defun configure-help-menu ()
+  (let* ((main-menu (#/mainMenu (#/sharedApplication ns:ns-application)))
+	 (help-menu (#/submenu (#/itemWithTitle: main-menu #@"Help")))
+	 (item (#/itemAtIndex: help-menu 0)))
+    (#/setAction: item (objc:@selector #/showHelpWindow:))
+    (#/setTarget: item *dpf-controller*)))
+
 (defun make-view-menu ()
   (let ((main-menu (#/mainMenu (#/sharedApplication ns:ns-application)))
 	(view-menu (make-instance 'ns:ns-menu :with-title #@"View"))
@@ -903,6 +971,8 @@
 			   (retarget-preferences-menu-item)
 			   (make-view-menu)
                            (add-slideshow-menu)
+			   (configure-help-menu)
+			   (maybe-show-help-window)
 			   (restore-slideshow-state))))
 
 (defun make-slideshow (assets title source &optional plist)
