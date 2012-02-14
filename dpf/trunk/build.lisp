@@ -16,6 +16,7 @@
 (defvar *ibtool-program* "/Developer/usr/bin/ibtool")
 
 (defparameter *resource-files* '("Credits.html"
+				 "help.html"
 				 "DPF.icns"))
 
 (defun compile-xib (xib &optional output-nib)
