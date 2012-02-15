@@ -1002,7 +1002,8 @@
       (if (directory-pathname-p title)
 	(with-cfstring (s (native-translated-namestring title))
 	  (#/setTitleWithRepresentedFilename: w s)
-	  (#/addWindowsItem:title:filename: gui::*nsapp* w s nil)
+	  (#/addWindowsItem:title:filename: gui::*nsapp* w
+					    (#/lastPathComponent s) nil)
 	  (#/setFrameAutosaveName: w s)
 	  (unless (#/setFrameUsingName: w s)
 	    ;; lower left corner
