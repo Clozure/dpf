@@ -519,7 +519,7 @@
      #&NSApplicationDidBecomeActiveNotification +null-ptr+)))
 
 
-(defclass slideshow-window (ns:ns-window)
+(defclass slideshow-window (ns:ns-panel)
   ()
   (:metaclass ns:+ns-object))
 
@@ -551,6 +551,7 @@
 	  transition *slide-transition*
 	  order *slide-order*
 	  on-top-p *slide-on-top-p*)
+    #+no-fullscreen-with-utility-panel-windows
     (when (lionp)
       ;; enable fullscreen
       (objc:objc-message-send (#/window x)
@@ -983,7 +984,7 @@
 	       (#/alloc (objc:@class "SlideshowWindow"))
 	       r
 	       (logior ;#$NSHUDWindowMask
-		       ;#$NSUtilityWindowMask
+		       #$NSUtilityWindowMask
 		       #$NSTitledWindowMask
 		       #$NSClosableWindowMask
 		       #$NSMiniaturizableWindowMask
@@ -996,17 +997,19 @@
       (#/release w)
       (#/setMovableByWindowBackground: w t)
       (#/setHidesOnDeactivate: w nil)
-      ;;(#/setFloatingPanel: w nil)
+      (#/setFloatingPanel: w nil)
       (#/setDelegate: w wc)
       (if (directory-pathname-p title)
 	(with-cfstring (s (native-translated-namestring title))
 	  (#/setTitleWithRepresentedFilename: w s)
+	  (#/addWindowsItem:title:filename: gui::*nsapp* w s nil)
 	  (#/setFrameAutosaveName: w s)
 	  (unless (#/setFrameUsingName: w s)
 	    ;; lower left corner
 	    (#/setFrameOrigin: w #&NSZeroPoint)))
 	(with-cfstring (s (native-translated-namestring title))
 	  (#/setTitle: w s)
+	  (#/addWindowsItem:title:filename: gui::*nsapp* w s nil)
 	  (#/setFrameAutosaveName: w s)
 	  (unless (#/setFrameUsingName: w s)
 	    ;; lower left corner
