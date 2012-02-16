@@ -9,7 +9,7 @@
 	<key>CFBundleIconFile</key>
 	<string>DPF.icns</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.clozure.DPF</string>
+	<string>com.clozure.store.DPF</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
@@ -21,7 +21,7 @@
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>29</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.lifestyle</string>
 	<key>LSMinimumSystemVersion</key>
