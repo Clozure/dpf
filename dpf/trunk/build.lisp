@@ -1,5 +1,7 @@
 (in-package "CL-USER")
 
+(setq ccl:*save-source-locations* nil)
+
 (require "COCOA")
 
 (defparameter *source-dir* (make-pathname :name nil :type nil
@@ -74,6 +76,8 @@
     (copy-file (ccl::kernel-path) (merge-pathnames "DPF" *macos-dir*)
 	       :if-exists :supersede
 	       :preserve-attributes t)
+    (format t "~&saving...~%")
+    (finish-output t)
     (save-application (merge-pathnames "ccl/DPF.image" *resources-dir*)
 		      :application-class (find-symbol "DPF-APPLICATION"
 						      "DPF"))))
