@@ -1,5 +1,20 @@
 (in-package "DPF")
 
+;;; A view filled with black, with rounded corners.  This is a slideshow
+;;; window's content view.
+(defclass dpf-black-view (ns:ns-view)
+  ()
+  (:metaclass ns:+ns-object))
+
+(objc:defmethod (#/drawRect: :void) ((self dpf-black-view) (dirty #>NSRect))
+  (let* ((rect (#/bounds self))
+         (bp (#/bezierPath ns:ns-bezier-path))
+         (radius (cgfloat 5)))
+    (#/appendBezierPathWithRoundedRect:xRadius:yRadius: bp rect radius radius)
+    (#/addClip bp)
+    (#/set (#/blackColor ns:ns-color))
+    (#_NSRectFill (#/bounds self))))
+
 (defconstant $black-titlebar-view-tag 100)
 
 ;;; A black titlebar, meant to resemble the one used in the QuickTime
@@ -246,12 +261,12 @@
 (objc:defmethod (#/canBecomeMainWindow #>BOOL) ((self dpf-window))
   t)
 
-#|
 (objc:defmethod (#/becomeKeyWindow :void) ((self dpf-window))
   (call-next-method)
   (#/setNeedsDisplay: (slot-value self 'titlebar-view) t)
-  (show-titlebar self))
+  (maybe-show-titlebar self))
 
+#|
 (objc:defmethod (#/resignKeyWindow :void) ((self dpf-window))
   (call-next-method)
   (#/setNeedsDisplay: (slot-value self 'titlebar-view) t)
