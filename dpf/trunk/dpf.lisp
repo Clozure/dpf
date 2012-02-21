@@ -1050,6 +1050,14 @@
 	  (unless (#/setFrameUsingName: w s)
 	    ;; lower left corner
 	    (#/setFrameOrigin: w #&NSZeroPoint))))
+      ;; Use a plain black view as our content view.  The idea is
+      ;; to avoid seeing through the window on certain transitions.
+      (let* ((v (#/initWithFrame: (#/alloc (objc:@class "DPFBlackView"))
+				  (#/bounds (#/contentView w)))))
+	(#/setAutoresizingMask: v (logior #$NSViewWidthSizable
+					  #$NSViewHeightSizable))
+	(#/setContentView: w v)
+	(#/release v))
       ;; This will make all subviews of the content view layer-backed
       ;; also.  We need this to get z-ordering of the titlebar and the
       ;; content to be right, but it also messes up the highlighting
