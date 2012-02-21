@@ -1,7 +1,3 @@
-(cl:defpackage "DPF"
-  (:use "CL" "CCL")
-  (:import-from "CCL" "ENSURE-DIRECTORY-PATHNAME"))
-
 (in-package "DPF")
 
 (defun choose-directory-dialog (&optional dir)
@@ -375,7 +371,7 @@
   (#/showWindow: *help-window-controller* +null-ptr+))
 
 (defparameter *saved-state-directory*
-  #p"home:Library;Application Support;Digital Photo Frame;")
+  #p"home:Library;Application Support;Picture Window;")
 
 (defparameter *saved-state-filename* "dpf-state.sexp")
 
@@ -519,7 +515,7 @@
      #&NSApplicationDidBecomeActiveNotification +null-ptr+)))
 
 
-(defclass slideshow-window (ns:ns-panel)
+(defclass slideshow-window (ns:ns-window)
   ()
   (:metaclass ns:+ns-object))
 
@@ -536,12 +532,6 @@
    (source :initform nil :accessor slideshow-source))
   (:metaclass ns:+ns-object))
 
-;;; #$NSAppKitVersionNumber10_6 isn't in the interface database
-(defconstant snow-leopard-appkit-version 1038d0)
-
-(defun lionp ()
-  (> (floor #$NSAppKitVersionNumber) snow-leopard-appkit-version))
- 
 ;;; This could also be done in an #/initWithWindow: override
 (defmethod initialize-instance :after ((x slideshow-window-controller)
 				       &rest initargs)
@@ -551,7 +541,6 @@
 	  transition *slide-transition*
 	  order *slide-order*
 	  on-top-p *slide-on-top-p*)
-    #+no-fullscreen-with-utility-panel-windows
     (when (lionp)
       ;; enable fullscreen
       (objc:objc-message-send (#/window x)
@@ -787,7 +776,12 @@
                                                            transition
                                                            #@"subviews"))))
 
-(objc:defmethod (#/drawRect: :void) ((self slideshow-view) (r #>NSRect))
+(objc:defmethod (#/drawRect: :void) ((self slideshow-view) (dirty #>NSRect))
+  (let* ((rect (#/bounds self))
+         (bp (#/bezierPath ns:ns-bezier-path))
+         (radius (cgfloat 5)))
+    (#/appendBezierPathWithRoundedRect:xRadius:yRadius: bp rect radius radius)
+    (#/addClip bp))
   (#/set (#/blackColor ns:ns-color))
   (#_NSRectFill (#/bounds self)))
 
@@ -981,11 +975,9 @@
 (defun make-slideshow (assets title source &optional plist)
   (ns:with-ns-rect (r 0 0 500 310)
     (let* ((w (#/initWithContentRect:styleMask:backing:defer:
-	       (#/alloc (objc:@class "SlideshowWindow"))
+	       (#/alloc (objc:@class "DPFWindow"))
 	       r
-	       (logior ;#$NSHUDWindowMask
-		       #$NSUtilityWindowMask
-		       #$NSTitledWindowMask
+	       (logior #$NSTitledWindowMask
 		       #$NSClosableWindowMask
 		       #$NSMiniaturizableWindowMask
 		       #$NSResizableWindowMask)
@@ -997,8 +989,8 @@
       (#/release w)
       (#/setMovableByWindowBackground: w t)
       (#/setHidesOnDeactivate: w nil)
-      (#/setFloatingPanel: w nil)
       (#/setDelegate: w wc)
+      ;; set window title
       (if (directory-pathname-p title)
 	(with-cfstring (s (native-translated-namestring title))
 	  (#/setTitleWithRepresentedFilename: w s)
@@ -1015,10 +1007,30 @@
 	  (unless (#/setFrameUsingName: w s)
 	    ;; lower left corner
 	    (#/setFrameOrigin: w #&NSZeroPoint))))
+      ;; This will make all subviews of the content view layer-backed
+      ;; also.  We need this to get z-ordering of the titlebar and the
+      ;; content to be right, but it also messes up the highlighting
+      ;; of the window traffic light buttons.
+      (#/setWantsLayer: (#/contentView w) t)
       (let* ((v (#/initWithFrame: (#/alloc (objc:@class "SlideshowView"))
 				  (#/bounds (#/contentView w)))))
-	(#/setAutoresizingMask: v (logior #$NSViewWidthSizable #$NSViewHeightSizable))
-	(#/setContentView: w v)
+	(#/setAutoresizingMask: v (logior #$NSViewWidthSizable
+					  #$NSViewHeightSizable))
+	(#/addSubview: (#/contentView w) v)
+	;; add the window's titlebar as a sibling of the content, but
+	;; ordered above it.
+	(let ((titlebar (slot-value w 'titlebar-view))
+	      (content-rect (#/bounds v)))
+	  (ns:with-ns-rect (r)
+	    (setf (ns:ns-rect-x r) 0
+		  (ns:ns-rect-y r) (- (ns:ns-rect-height content-rect) 23)
+		  (ns:ns-rect-width r) (ns:ns-rect-width content-rect)
+		  (ns:ns-rect-height r) 23)
+	    (#/setFrame: titlebar r))
+	  (#/addSubview:positioned:relativeTo: (#/contentView w)
+					       titlebar
+					       #$NSWindowAbove
+					       v))
 	(#/release v)
 	(setf (slideshow-view wc) v))
       (setf (slideshow-source wc) source)
