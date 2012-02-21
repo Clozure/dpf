@@ -2,10 +2,10 @@
 <archive type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="7.10">
 	<data>
 		<int key="IBDocument.SystemTarget">1070</int>
-		<string key="IBDocument.SystemVersion">11C74</string>
+		<string key="IBDocument.SystemVersion">11D50b</string>
 		<string key="IBDocument.InterfaceBuilderVersion">1938</string>
-		<string key="IBDocument.AppKitVersion">1138.23</string>
-		<string key="IBDocument.HIToolboxVersion">567.00</string>
+		<string key="IBDocument.AppKitVersion">1138.32</string>
+		<string key="IBDocument.HIToolboxVersion">568.00</string>
 		<object class="NSMutableDictionary" key="IBDocument.PluginVersions">
 			<string key="NS.key.0">com.apple.InterfaceBuilder.CocoaPlugin</string>
 			<string key="NS.object.0">1938</string>
@@ -45,7 +45,7 @@
 				<int key="NSWindowBacking">2</int>
 				<string key="NSWindowRect">{{196, 240}, {480, 469}}</string>
 				<int key="NSWTFlags">544735232</int>
-				<string key="NSWindowTitle">Welcome to Digital Photo Frame</string>
+				<string key="NSWindowTitle"/>
 				<string key="NSWindowClass">NSWindow</string>
 				<nil key="NSViewClass"/>
 				<nil key="NSUserInterfaceItemIdentifier"/>
@@ -67,7 +67,7 @@
 										<object class="NSTextView" id="665243108">
 											<reference key="NSNextResponder" ref="465351501"/>
 											<int key="NSvFlags">2322</int>
-											<string key="NSFrameSize">{480, 219}</string>
+											<string key="NSFrame">{{0, 205}, {480, 14}}</string>
 											<reference key="NSSuperview" ref="465351501"/>
 											<reference key="NSWindow"/>
 											<reference key="NSNextKeyView" ref="718649286"/>
