@@ -230,8 +230,10 @@
 (defmethod show-titlebar (w)
   (fade-titlebar (find-titlebar w) :in))
 
-(defun hide-titlebar (w)
-  (fade-titlebar (find-titlebar w) :out))
+(defun hide-titlebar (w &optional now)
+  (if now
+    (#/setHidden: (find-titlebar w) t)
+    (fade-titlebar (find-titlebar w) :out)))
 
 (objc:defmethod (#/canBecomeKeyWindow #>BOOL) ((self dpf-window))
   t)
