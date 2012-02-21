@@ -8,7 +8,7 @@
 					  :defaults *load-truename*))
 (defparameter *build-dir* (merge-pathnames "build/" *source-dir*))
 
-(defparameter *dpf-files* '("dpf"))
+(defparameter *dpf-files* '("package" "misc" "window" "dpf"))
 
 (defvar *bundle-dir*)
 (defvar *contents-dir*)
