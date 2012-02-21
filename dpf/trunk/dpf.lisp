@@ -707,6 +707,14 @@
   ()
   (:metaclass ns:+ns-object))
 
+(objc:defmethod (#/drawRect: :void) ((self dpf-image-view) (dirty #>NSRect))
+  (let* ((rect (#/bounds self))
+         (bp (#/bezierPath ns:ns-bezier-path))
+         (radius (cgfloat 5)))
+    (#/appendBezierPathWithRoundedRect:xRadius:yRadius: bp rect radius radius)
+    (#/addClip bp)
+    (call-next-method dirty)))
+
 (objc:defmethod (#/mouseDownCanMoveWindow #>BOOL) ((self dpf-image-view))
   #$YES)
   
@@ -805,15 +813,21 @@
                                                            transition
                                                            #@"subviews"))))
 
+(defconstant $fullscreen-window-mask-bit 14)
+
 (objc:defmethod (#/drawRect: :void) ((self slideshow-view) (dirty #>NSRect))
-  (let* ((rect (#/bounds self))
-         (bp (#/bezierPath ns:ns-bezier-path))
-         (radius (cgfloat 5)))
-    (#/appendBezierPathWithRoundedRect:xRadius:yRadius: bp rect radius radius)
-    (#/addClip bp))
+  (let ((style-mask (#/styleMask (#/window self))))
+    ;; don't show rounded corners in full screen
+    (unless (logbitp $fullscreen-window-mask-bit style-mask)
+      (let* ((rect (#/bounds self))
+	     (bp (#/bezierPath ns:ns-bezier-path))
+	     (radius (cgfloat 5)))
+	(#/appendBezierPathWithRoundedRect:xRadius:yRadius: bp rect
+							    radius radius)
+	(#/addClip bp))))
   (#/set (#/blackColor ns:ns-color))
   (#_NSRectFill (#/bounds self)))
-
+  
 (objc:defmethod (#/mouseDownCanMoveWindow #>BOOL) ((self slideshow-view))
   #$YES)
 
