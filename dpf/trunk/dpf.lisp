@@ -371,9 +371,9 @@
   (#/showWindow: *help-window-controller* +null-ptr+))
 
 (defparameter *saved-state-directory*
-  #p"home:Library;Application Support;Picture Window;")
+  #p"home:Library;Application Support;com.clozure.PictureWindow;")
 
-(defparameter *saved-state-filename* "dpf-state.sexp")
+(defparameter *saved-state-filename* "state.sexp")
 
 (defparameter *restoring-slideshow-state* nil
   "bound to t when restoring slideshow state")

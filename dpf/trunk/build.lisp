@@ -19,7 +19,7 @@
 
 (defparameter *resource-files* '("Credits.html"
 				 "help.html"
-				 "DPF.icns"))
+				 "app.icns"))
 
 (defun compile-xib (xib &optional output-nib)
   (unless output-nib
@@ -44,7 +44,7 @@
 
 (defun build-dpf (&optional (build-dir *build-dir*))
   (let* ((*build-dir* build-dir)
-	 (*bundle-dir* (merge-pathnames "DPF.app/" *build-dir*))
+	 (*bundle-dir* (merge-pathnames "Picture Window.app/" *build-dir*))
 	 (*contents-dir* (merge-pathnames "Contents/" *bundle-dir*))
 	 (*resources-dir* (merge-pathnames "Resources/" *contents-dir*))
 	 (*macos-dir* (merge-pathnames "MacOS/" *contents-dir*))
@@ -73,12 +73,14 @@
 				 :type (pathname-type *.fasl-pathname*)
 				 :defaults *build-dir*)))
 	(compile-file src :output-file dst :verbose t :load t)))
-    (copy-file (ccl::kernel-path) (merge-pathnames "DPF" *macos-dir*)
+    (copy-file (ccl::kernel-path) (merge-pathnames "Picture Window"
+						   *macos-dir*)
 	       :if-exists :supersede
 	       :preserve-attributes t)
     (format t "~&saving...~%")
     (finish-output t)
-    (save-application (merge-pathnames "ccl/DPF.image" *resources-dir*)
+    (save-application (merge-pathnames "ccl/Picture Window.image"
+				       *resources-dir*)
 		      :application-class (find-symbol "DPF-APPLICATION"
 						      "DPF"))))
 
