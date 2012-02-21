@@ -689,8 +689,7 @@
 	(setf (slideshow-on-top-p x) nil)
 	(push x on-top-slideshows)))
     (setf (slot-value self 'saved-on-top-slideshows) on-top-slideshows))
-  (#/orderFront: (#/window self) +null-ptr+)
-  (hide-titlebar (#/window self)))
+  (hide-titlebar (#/window self) :now))
 
 (objc:defmethod (#/windowWillExitFullScreen: :void)
                 ((self slideshow-window-controller) notification)
