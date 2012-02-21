@@ -522,6 +522,8 @@
 ;;; Instances of this class manage a running slideshow.
 (defclass slideshow-window-controller (ns:ns-window-controller)
   ((view :foreign-type :id :accessor slideshow-view)
+   (saved-window-level :initform 0)
+   (saved-on-top-slideshows :initform nil)
    (timer :foreign-type :id :accessor slideshow-timer)
    (duration :accessor slideshow-duration)
    (transition :accessor slideshow-transition)
@@ -677,6 +679,27 @@
 	(when (typep wc 'slideshow-window-controller)
 	  (push wc controllers))))))
 
+(objc:defmethod (#/windowWillEnterFullScreen: :void) 
+                ((self slideshow-window-controller) notification)
+  (declare (ignore notification))
+  (let ((others (remove self (slideshow-window-controllers)))
+	(on-top-slideshows nil))
+    (dolist (x others)
+      (when (slideshow-on-top-p x)
+	(setf (slideshow-on-top-p x) nil)
+	(push x on-top-slideshows)))
+    (setf (slot-value self 'saved-on-top-slideshows) on-top-slideshows))
+  (#/orderFront: (#/window self) +null-ptr+)
+  (hide-titlebar (#/window self)))
+
+(objc:defmethod (#/windowWillExitFullScreen: :void)
+                ((self slideshow-window-controller) notification)
+  (declare (ignore notification))
+  (dolist (x (slot-value self 'saved-on-top-slideshows))
+    (setf (slideshow-on-top-p x) t))
+  (setf (slot-value self 'saved-on-top-slideshows) nil)
+  (show-titlebar (#/window self)))
+
 
 (defclass dpf-image-view (ns:ns-image-view)
   ()
@@ -810,7 +833,7 @@
            (#/advanceSlideBy: wc 1)
            (#/setSlideshowDuration: wc (slideshow-duration wc)))
           (t 
-           (#_NSBeep)))))
+           (call-next-method event)))))
   
 (objc:defmethod (#/showImage: :void) ((self slideshow-view) image)
   (if (%null-ptr-p image)
