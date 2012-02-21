@@ -5,15 +5,15 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleExecutable</key>
-	<string>DPF</string>
+	<string>Picture Window</string>
 	<key>CFBundleIconFile</key>
-	<string>DPF.icns</string>
+	<string>app.icns</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.clozure.store.DPF</string>
+	<string>com.clozure.store.PictureWindow</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>Picture Window </string>
+	<string>Picture Window</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
