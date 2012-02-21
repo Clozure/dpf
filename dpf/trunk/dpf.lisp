@@ -696,9 +696,12 @@
   (declare (ignore notification))
   (dolist (x (slot-value self 'saved-on-top-slideshows))
     (setf (slideshow-on-top-p x) t))
-  (setf (slot-value self 'saved-on-top-slideshows) nil)
-  (show-titlebar (#/window self)))
+  (setf (slot-value self 'saved-on-top-slideshows) nil))
 
+(objc:defmethod (#/windowDidExitFullScreen: :void)
+                ((self slideshow-window-controller) notification)
+  (declare (ignore notification))
+  (maybe-show-titlebar (#/window self)))
 
 (defclass dpf-image-view (ns:ns-image-view)
   ()
@@ -770,15 +773,19 @@
   (declare (ignore e))
   ;;(#_NSLog #@"mouseEntered:")
   (let* ((w (#/window self))
-	 (wc (#/windowController w)))
+	 (wc (#/windowController w))
+	 (active-p (#/isActive (#/sharedApplication ns:ns-application))))
+    (when active-p
+      (show-titlebar w))
     (when (and (slideshow-on-top-p wc)
-	       (not (#/isActive (#/sharedApplication ns:ns-application))))
+	       (not active-p))
       (#/setAlphaValue: (#/animator w) (float 0.1 ccl::+cgfloat-zero+)))))
 
 (objc:defmethod (#/mouseExited: :void) ((self slideshow-view) e)
   (declare (ignore e))
   ;;(#_NSLog #@"mouseExited:")
   (let* ((w (#/window self)))
+    (hide-titlebar w)
     (#/setAlphaValue: (#/animator w) (float 1.0 ccl::+cgfloat-zero+))))
 
 (objc:defmethod (#/dealloc :void) ((self slideshow-view))
@@ -1052,9 +1059,11 @@
 	  (#/addSubview:positioned:relativeTo: (#/contentView w)
 					       titlebar
 					       #$NSWindowAbove
-					       v))
+					       v)
+	  (#/setHidden: titlebar t))
 	(#/release v)
 	(setf (slideshow-view wc) v))
+      (maybe-show-titlebar w)
       (setf (slideshow-source wc) source)
       (when plist
 	(let (val)

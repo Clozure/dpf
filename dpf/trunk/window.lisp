@@ -224,11 +224,16 @@
       (:in (#/setHidden: (#/animator titlebar) nil))
       (:out (#/setHidden: (#/animator titlebar) t)))))
 
-(defmethod find-titlebar (w)
+(defun find-titlebar (w)
   (#/viewWithTag: (#/contentView w) $black-titlebar-view-tag))
 
-(defmethod show-titlebar (w)
+(defun show-titlebar (w)
   (fade-titlebar (find-titlebar w) :in))
+
+(defun maybe-show-titlebar (w)
+  (let ((pt (#/mouseLocation ns:ns-event)))
+    (when (= 1 (#_NSPointInRect pt (#/frame w)))
+      (show-titlebar w))))
 
 (defun hide-titlebar (w &optional now)
   (if now
@@ -241,6 +246,7 @@
 (objc:defmethod (#/canBecomeMainWindow #>BOOL) ((self dpf-window))
   t)
 
+#|
 (objc:defmethod (#/becomeKeyWindow :void) ((self dpf-window))
   (call-next-method)
   (#/setNeedsDisplay: (slot-value self 'titlebar-view) t)
@@ -250,3 +256,4 @@
   (call-next-method)
   (#/setNeedsDisplay: (slot-value self 'titlebar-view) t)
   (hide-titlebar self))
+|#
