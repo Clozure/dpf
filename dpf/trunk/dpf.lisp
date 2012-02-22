@@ -545,8 +545,6 @@
 ;;; Instances of this class manage a running slideshow.
 (defclass slideshow-window-controller (ns:ns-window-controller)
   ((view :foreign-type :id :accessor slideshow-view)
-   (saved-window-level :initform 0)
-   (saved-on-top-slideshows :initform nil)
    (timer :foreign-type :id :accessor slideshow-timer)
    (duration :accessor slideshow-duration)
    (transition :accessor slideshow-transition)
@@ -571,8 +569,10 @@
       ;; enable fullscreen
       (objc:objc-message-send (#/window x)
 			      "setCollectionBehavior:"
-			      ;; NSWindowCollectinoBehaviorFullScreenPrimary
-			      #>NSUInteger (ash 1 7)))
+			      #>NSUInteger
+			      ;; NSWindowCollectionBehaviorFullScreenPrimary
+			      (logior (ash 1 7)
+				      #$NSWindowCollectionBehaviorManaged)))
     (when on-top-p
       (#/setLevel: (#/window x)
 		   (#_CGWindowLevelForKey #$kCGFloatingWindowLevelKey)))))
@@ -706,21 +706,11 @@
 (objc:defmethod (#/windowWillEnterFullScreen: :void) 
                 ((self slideshow-window-controller) notification)
   (declare (ignore notification))
-  (let ((others (remove self (slideshow-window-controllers)))
-	(on-top-slideshows nil))
-    (dolist (x others)
-      (when (slideshow-on-top-p x)
-	(setf (slideshow-on-top-p x) nil)
-	(push x on-top-slideshows)))
-    (setf (slot-value self 'saved-on-top-slideshows) on-top-slideshows))
   (hide-titlebar (#/window self) :now))
 
 (objc:defmethod (#/windowWillExitFullScreen: :void)
                 ((self slideshow-window-controller) notification)
-  (declare (ignore notification))
-  (dolist (x (slot-value self 'saved-on-top-slideshows))
-    (setf (slideshow-on-top-p x) t))
-  (setf (slot-value self 'saved-on-top-slideshows) nil))
+  (declare (ignore notification)))
 
 (objc:defmethod (#/windowDidExitFullScreen: :void)
                 ((self slideshow-window-controller) notification)
@@ -807,7 +797,7 @@
     (let* ((w (#/window self))
 	   (wc (#/windowController w))
 	   (active-p (#/isActive (#/sharedApplication ns:ns-application))))
-      (when (logbitp $fullscreen-window-mask-bit (#/styleMask w))
+      (when (fullscreen-window-p w)
 	(return-from method))
       (when active-p
 	(show-titlebar w))
@@ -819,7 +809,7 @@
   (declare (ignore e))
   (block method
     (let* ((w (#/window self)))
-      (when (logbitp $fullscreen-window-mask-bit (#/styleMask w))
+      (when (fullscreen-window-p w)
 	(return-from method))
       (hide-titlebar w)
       (#/setAlphaValue: (#/animator w) (float 1.0 ccl::+cgfloat-zero+)))))
@@ -841,15 +831,14 @@
                                                            #@"subviews"))))
 
 (objc:defmethod (#/drawRect: :void) ((self slideshow-view) (dirty #>NSRect))
-  (let ((style-mask (#/styleMask (#/window self))))
-    ;; don't show rounded corners in full screen
-    (unless (logbitp $fullscreen-window-mask-bit style-mask)
-      (let* ((rect (#/bounds self))
-	     (bp (#/bezierPath ns:ns-bezier-path))
-	     (radius (cgfloat 5)))
-	(#/appendBezierPathWithRoundedRect:xRadius:yRadius: bp rect
-							    radius radius)
-	(#/addClip bp))))
+  ;; don't show rounded corners in full screen
+  (unless (fullscreen-window-p (#/window self))
+    (let* ((rect (#/bounds self))
+	   (bp (#/bezierPath ns:ns-bezier-path))
+	   (radius (cgfloat 5)))
+      (#/appendBezierPathWithRoundedRect:xRadius:yRadius: bp rect
+							  radius radius)
+      (#/addClip bp)))
   (#/set (#/blackColor ns:ns-color))
   (#_NSRectFill (#/bounds self)))
   
