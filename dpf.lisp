@@ -721,14 +721,6 @@
   ()
   (:metaclass ns:+ns-object))
 
-(objc:defmethod (#/drawRect: :void) ((self dpf-image-view) (dirty #>NSRect))
-  (let* ((rect (#/bounds self))
-         (bp (#/bezierPath ns:ns-bezier-path))
-         (radius (cgfloat 5)))
-    (#/appendBezierPathWithRoundedRect:xRadius:yRadius: bp rect radius radius)
-    (#/addClip bp)
-    (call-next-method dirty)))
-
 (objc:defmethod (#/mouseDownCanMoveWindow #>BOOL) ((self dpf-image-view))
   #$YES)
   
@@ -831,14 +823,6 @@
                                                            #@"subviews"))))
 
 (objc:defmethod (#/drawRect: :void) ((self slideshow-view) (dirty #>NSRect))
-  ;; don't show rounded corners in full screen
-  (unless (fullscreen-window-p (#/window self))
-    (let* ((rect (#/bounds self))
-	   (bp (#/bezierPath ns:ns-bezier-path))
-	   (radius (cgfloat 5)))
-      (#/appendBezierPathWithRoundedRect:xRadius:yRadius: bp rect
-							  radius radius)
-      (#/addClip bp)))
   (#/set (#/blackColor ns:ns-color))
   (#_NSRectFill (#/bounds self)))
   
@@ -1084,7 +1068,7 @@
       ;; also.  We need this to get z-ordering of the titlebar and the
       ;; content to be right, but it also messes up the highlighting
       ;; of the window traffic light buttons.
-      (#/setWantsLayer: (#/contentView w) t)
+      ;(#/setWantsLayer: (#/contentView w) t)
       (let* ((v (#/initWithFrame: (#/alloc (objc:@class "SlideshowView"))
 				  (#/bounds (#/contentView w)))))
 	(#/setAutoresizingMask: v (logior #$NSViewWidthSizable

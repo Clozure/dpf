@@ -6,14 +6,17 @@
   ()
   (:metaclass ns:+ns-object))
 
+(objc:defmethod #/initWithFrame: ((self dpf-black-view) (frame #>NSRect))
+  (call-next-method frame)
+  (#/setWantsLayer: self t)
+  (let ((layer (#/layer self)))
+    (#/setMasksToBounds: layer t)
+    (#/setCornerRadius: layer (cgfloat 5)))
+  self)
+
 (objc:defmethod (#/drawRect: :void) ((self dpf-black-view) (dirty #>NSRect))
-  (let* ((rect (#/bounds self))
-         (bp (#/bezierPath ns:ns-bezier-path))
-         (radius (cgfloat 5)))
-    (#/appendBezierPathWithRoundedRect:xRadius:yRadius: bp rect radius radius)
-    (#/addClip bp)
-    (#/set (#/blackColor ns:ns-color))
-    (#_NSRectFill (#/bounds self))))
+  (#/set (#/blackColor ns:ns-color))
+  (#_NSRectFill (#/bounds self)))
 
 (defconstant $black-titlebar-view-tag 100)
 
