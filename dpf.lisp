@@ -1,22 +1,34 @@
 (in-package "DPF")
 
 (defun choose-directory-dialog (&optional dir)
-  (gui::execute-in-gui
-   #'(lambda ()
-       (let ((op (#/openPanel ns:ns-open-panel)))
-         (#/setAllowsMultipleSelection: op nil)
-         (#/setCanChooseDirectories: op t)
-         (#/setCanChooseFiles: op nil)
-	 (#/setDirectoryURL: op +null-ptr+)
-	 (when dir
-	   (with-cfurl (u dir)
-	     (#/setDirectoryURL: op u)))
-         (when (eql (#/runModalForTypes: op +null-ptr+) #$NSOKButton)
-           (let* ((u (#/directoryURL op))
-                  (path (#_CFURLCopyFileSystemPath u #$kCFURLPOSIXPathStyle)))
-             (prog1
-                 (ensure-directory-pathname (%get-cfstring path))
-               (#_CFRelease path))))))))
+  (let* ((r (ns:make-ns-rect 0 0 200 25))
+	 (b (#/initWithFrame: (#/alloc ns:ns-button) r)))
+    (#/setButtonType: b #$NSSwitchButton)
+    (#/setTitle: b #@"Look for pictures in subfolders")
+    (gui::execute-in-gui
+     #'(lambda ()
+	 (let ((op (#/openPanel ns:ns-open-panel)))
+	   (#/retain op)
+	   (#/setAllowsMultipleSelection: op nil)
+	   (#/setCanChooseDirectories: op t)
+	   (#/setCanChooseFiles: op nil)
+	   (#/setDirectoryURL: op +null-ptr+)
+	   (#/setAccessoryView: op b)
+	   (#/release b)
+	   (when dir
+	     (with-cfurl (u dir)
+	       (#/setDirectoryURL: op u)))
+	   (when (eql (#/runModalForTypes: op +null-ptr+) #$NSOKButton)
+	     (let* ((include-subdirs (= 1 (#/state b)))
+		    (u (#/directoryURL op))
+		    (path (#_CFURLCopyFileSystemPath u
+						     #$kCFURLPOSIXPathStyle)))
+	       (#/release op)
+	       (multiple-value-prog1
+		   (values
+		    (ensure-directory-pathname (%get-cfstring path))
+		    include-subdirs)
+		 (#_CFRelease path)))))))))
 
 (defmacro with-fsref ((sym pathname) &body body)
   (let ((s (gensym))
@@ -202,9 +214,14 @@
 	  (#_CFRelease p)
 	  (member uti *supported-image-types* :test 'string=))))))
 
-(defun image-files-in-directory (pathname)
+(defun image-files-in-directory (pathname &key recursive)
   (let* ((dir (ensure-directory-pathname pathname))
-	 (wild (make-pathname :name :wild :type :wild :defaults dir)))
+	 (wild nil))
+    (when recursive
+      (setq dir (make-pathname :directory (append (pathname-directory dir)
+						  '(:wild-inferiors))
+			       :defaults dir)))
+    (setq wild (make-pathname :name :wild :type :wild :defaults dir))
     (directory wild :directories nil :files t :test 'image-file-p)))
 
 
@@ -346,11 +363,15 @@
 (defconstant $from-iphoto-tag 1)
 
 (objc:defmethod (#/newSlideshow: :void) ((self dpf-controller) sender)
-  (let ((tag (#/tag sender)))
+  (let ((tag (#/tag sender))
+	(plist nil))
     (cond ((= tag $from-folder-tag)
-	   (let ((dir (choose-directory-dialog)))
+	   (multiple-value-bind (dir include-subdirs)
+	       (choose-directory-dialog)
+	     (when include-subdirs
+	       (setq plist (list :include-subdirs t)))
 	     (when dir
-	       (make-slideshow-from-folder dir))))
+	       (make-slideshow-from-folder dir plist))))
 	  ((= tag $from-iphoto-tag)
 	   (#_NSBeep)))))
 
@@ -779,25 +800,28 @@
 
 (objc:defmethod (#/mouseEntered: :void) ((self slideshow-view) e)
   (declare (ignore e))
-  ;;(#_NSLog #@"mouseEntered:")
-  (let* ((w (#/window self))
-	 (wc (#/windowController w))
-	 (active-p (#/isActive (#/sharedApplication ns:ns-application))))
-    (when active-p
-      (show-titlebar w))
-    (when (and (slideshow-on-top-p wc)
-	       (not active-p))
-      (#/setAlphaValue: (#/animator w) (float 0.1 ccl::+cgfloat-zero+)))))
+  (block method
+    (let* ((w (#/window self))
+	   (wc (#/windowController w))
+	   (active-p (#/isActive (#/sharedApplication ns:ns-application))))
+      (when (logbitp $fullscreen-window-mask-bit (#/styleMask w))
+	(return-from method))
+      (when active-p
+	(show-titlebar w))
+      (when (and (slideshow-on-top-p wc)
+		 (not active-p))
+	(#/setAlphaValue: (#/animator w) (float 0.1 ccl::+cgfloat-zero+))))))
 
 (objc:defmethod (#/mouseExited: :void) ((self slideshow-view) e)
   (declare (ignore e))
-  ;;(#_NSLog #@"mouseExited:")
-  (let* ((w (#/window self)))
-    (hide-titlebar w)
-    (#/setAlphaValue: (#/animator w) (float 1.0 ccl::+cgfloat-zero+))))
+  (block method
+    (let* ((w (#/window self)))
+      (when (logbitp $fullscreen-window-mask-bit (#/styleMask w))
+	(return-from method))
+      (hide-titlebar w)
+      (#/setAlphaValue: (#/animator w) (float 1.0 ccl::+cgfloat-zero+)))))
 
 (objc:defmethod (#/dealloc :void) ((self slideshow-view))
-  ;;(#_NSLog #@"slideshow-view dealloc")
   (with-slots (image-view tracking-area) self
     (#/release image-view)
     (#/release tracking-area))
@@ -812,8 +836,6 @@
     (#/setAnimations: self (#/dictionaryWithObject:forKey: ns:ns-dictionary
                                                            transition
                                                            #@"subviews"))))
-
-(defconstant $fullscreen-window-mask-bit 14)
 
 (objc:defmethod (#/drawRect: :void) ((self slideshow-view) (dirty #>NSRect))
   (let ((style-mask (#/styleMask (#/window self))))
@@ -1108,7 +1130,8 @@
       (#/startTimer wc))))
 
 (defun make-slideshow-from-folder (dir &optional plist)
-  (let ((image-pathnames (image-files-in-directory dir)))
+  (let* ((include-subdirs (getf plist :include-subdirs))
+	 (image-pathnames (image-files-in-directory dir include-subdirs)))
     (if (null image-pathnames)
       (unless *restoring-slideshow-state*
 	(let ((message (format nil "No readable image files were found in \"~a\"" (native-translated-namestring dir))))
