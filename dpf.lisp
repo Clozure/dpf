@@ -969,6 +969,14 @@
 			 #@""))
     (#/setTag: item $keep-on-top)
     (#/setEnabled: item t)
+    (#/addItem: view-menu (#/separatorItem ns:ns-menu-item))
+    (setq item (#/addItemWithTitle:action:keyEquivalent:
+			 view-menu
+			 #@"Enter Full Screen"
+			 (objc:@selector #/toggleFullScreen:)
+			 #@"f"))
+    (#/setKeyEquivalentModifierMask: item (logior #$NSCommandKeyMask
+						  #$NSControlKeyMask))
 
     (setq item (#/insertItemWithTitle:action:keyEquivalent:atIndex: main-menu
 							 #@"View"
