@@ -429,20 +429,24 @@
 			     (slideshow-transition s)
 			     (slideshow-order s)
 			     (slideshow-on-top-p s)
-			     (slideshow-current-index s))
+			     (slideshow-current-index s)
+			     (slideshow-include-subdirs s))
 		       output)))))))))
 
 (defun restore-slideshow (state)
-  (destructuring-bind (source duration transition order on-top-p current-index)
+  (destructuring-bind (source duration transition order on-top-p current-index
+			      &optional include-subdirs)
       state
     (if (and (member duration *valid-durations*)
 	     (member transition *valid-transitions*)
 	     (member order *valid-orders*)
 	     (typep on-top-p 'boolean)
-	     (typep current-index '(integer 0)))
+	     (typep current-index '(integer 0))
+	     (typep include-subdirs 'boolean))
       (let ((plist (list :duration duration :transition transition
 			 :order order :on-top-p on-top-p
-			 :current-index current-index)))
+			 :current-index current-index
+			 :include-subdirs include-subdirs)))
 	(if (pathnamep source)
 	  (make-slideshow-from-folder source plist)
 	  (let ((album (find source (iphoto-library-albums *iphoto-library*)
@@ -550,7 +554,8 @@
    (on-top-p :reader slideshow-on-top-p)
    (assets :initform nil :accessor slideshow-assets)
    (current-index :initform 0 :accessor slideshow-current-index)
-   (source :initform nil :accessor slideshow-source))
+   (source :initform nil :accessor slideshow-source)
+   (include-subdirs :initform nil :accessor slideshow-include-subdirs))
   (:metaclass ns:+ns-object))
 
 ;;; This could also be done in an #/initWithWindow: override
@@ -1109,6 +1114,8 @@
       (setf (slideshow-source wc) source)
       (when plist
 	(let (val)
+	  (when (setq val (getf plist :include-subdirs))
+	    (setf (slideshow-include-subdirs wc) val))
 	  (when (setq val (getf plist :duration))
 	    (setf (slideshow-duration wc) val))
 	  (when (setq val (getf plist :transition))
