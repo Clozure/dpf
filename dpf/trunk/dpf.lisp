@@ -218,9 +218,7 @@
   (let* ((dir (ensure-directory-pathname pathname))
 	 (wild nil))
     (when recursive
-      (setq dir (make-pathname :directory (append (pathname-directory dir)
-						  '(:wild-inferiors))
-			       :defaults dir)))
+      (setq dir (merge-pathnames #p"**/" dir)))
     (setq wild (make-pathname :name :wild :type :wild :defaults dir))
     (directory wild :directories nil :files t :test 'image-file-p)))
 
@@ -1130,8 +1128,8 @@
       (#/startTimer wc))))
 
 (defun make-slideshow-from-folder (dir &optional plist)
-  (let* ((include-subdirs (getf plist :include-subdirs))
-	 (image-pathnames (image-files-in-directory dir include-subdirs)))
+  (let* ((recursive (getf plist :include-subdirs))
+	 (image-pathnames (image-files-in-directory dir :recursive recursive)))
     (if (null image-pathnames)
       (unless *restoring-slideshow-state*
 	(let ((message (format nil "No readable image files were found in \"~a\"" (native-translated-namestring dir))))
