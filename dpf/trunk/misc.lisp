@@ -9,5 +9,8 @@
 
 (defun lionp ()
   (> (floor #$NSAppKitVersionNumber) snow-leopard-appkit-version))
+
+(defconstant $fullscreen-window-mask-bit 14)
+
  
 
