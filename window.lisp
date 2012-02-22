@@ -246,9 +246,10 @@
   (fade-titlebar (find-titlebar w) :in))
 
 (defun maybe-show-titlebar (w)
-  (let ((pt (#/mouseLocation ns:ns-event)))
-    (when (= 1 (#_NSPointInRect pt (#/frame w)))
-      (show-titlebar w))))
+  (unless (fullscreen-window-p w)
+    (let ((pt (#/mouseLocation ns:ns-event)))
+      (when (= 1 (#_NSPointInRect pt (#/frame w)))
+	(show-titlebar w)))))
 
 (defun hide-titlebar (w &optional now)
   (if now
@@ -272,3 +273,6 @@
   (#/setNeedsDisplay: (slot-value self 'titlebar-view) t)
   (hide-titlebar self))
 |#
+
+(defun fullscreen-window-p (w)
+  (logbitp $fullscreen-window-mask-bit (#/styleMask w)))
