@@ -6,17 +6,28 @@
   ()
   (:metaclass ns:+ns-object))
 
-(objc:defmethod #/initWithFrame: ((self dpf-black-view) (frame #>NSRect))
-  (call-next-method frame)
-  (#/setWantsLayer: self t)
-  (let ((layer (#/layer self)))
-    (#/setMasksToBounds: layer t)
-    (#/setCornerRadius: layer (cgfloat 5)))
-  self)
-
 (objc:defmethod (#/drawRect: :void) ((self dpf-black-view) (dirty #>NSRect))
-  (#/set (#/blackColor ns:ns-color))
-  (#_NSRectFill (#/bounds self)))
+  (let ((p (#/bezierPath ns:ns-bezier-path))
+	(r (cgfloat 5)))
+    (#/appendBezierPathWithRoundedRect:xRadius:yRadius: p (#/bounds self) r r)
+    (#/addClip p)
+    (#/set *black-color*)
+    (#_NSRectFill (#/bounds self))))
+
+(defclass dpf-mask-view (ns:ns-view)
+  ()
+  (:metaclass ns:+ns-object))
+
+(objc:defmethod #/initWithFrame: ((self dpf-mask-view) (frame #>NSRect))
+  (call-next-method frame)
+  (let ((layer (#/layer (objc:@class "CALayer"))))
+    (#/setBackgroundColor: layer *black-color*)
+    (#/setCornerRadius: layer (cgfloat 5))
+    (#/setMasksToBounds: layer t)
+    (#/setOpaque: layer t)
+    (#/setLayer: self layer)
+    (#/setWantsLayer: self t))
+  self)
 
 (defconstant $black-titlebar-view-tag 100)
 
@@ -41,6 +52,7 @@
 
 (objc:defmethod #/initWithFrame: ((self dpf-titlebar-view) (frame #>NSRect))
   (call-next-method frame)
+  (#/setWantsLayer: self t)
   (let ((close (#/standardWindowButton:forStyleMask:
                 ns:ns-window #$NSWindowCloseButton #$NSTitledWindowMask))
         (miniaturize (#/standardWindowButton:forStyleMask:
@@ -181,9 +193,7 @@
 
 
 
-;;; A window with an overlay title bar that fades in and out when the
-;;; window is/isn't the main window.  We might fade in and out based
-;;; on mouse motion also, but let's try this first.
+;;; A window with an overlay title bar that fades in and out.
 (defclass dpf-window (ns:ns-window)
   ((titlebar-view :foreign-type :id)
    (tag :foreign-type #>NSInteger))
@@ -201,11 +211,8 @@
                                      #$NSResizableWindowMask)
                              backing defer)))
     (#/setOpaque: w nil)
-    (#/setBackgroundColor: w (#/clearColor ns:ns-color))
+    (#/setBackgroundColor: w *clear-color*)
     (#/setMovableByWindowBackground: w t)
-    (when (lionp)
-      (objc:objc-message-send w "setCollectionBehavior:"
-			      #>NSUInteger (ash 1 7)))
     (ns:with-ns-rect (r)
       (setf (ns:ns-rect-x r) 0
 	    (ns:ns-rect-y r) (- (ns:ns-rect-height content-rect) 23)
@@ -223,10 +230,15 @@
 
 ;;; These next two methods are a work-around to make command-W work.
 (objc:defmethod (#/validateMenuItem: #>BOOL) ((self dpf-window) menu-item)
-  (if (eql (#/action menu-item)
-	   (objc:@selector #/performClose:))
-    (#/respondsToSelector: self (objc:@selector #/performClose:))
-    (call-next-method menu-item)))
+  (let ((action (#/action menu-item)))
+    (cond ((eql action (objc:@selector #/performClose:))
+	   (#/respondsToSelector: self (objc:@selector #/performClose:)))
+	  ((eql action (objc:@selector #/performMiniaturize:))
+	   (#/respondsToSelector: self (objc:@selector #/performMiniaturize:)))
+	  ((eql action (objc:@selector #/performZoom:))
+	   (#/respondsToSelector: self (objc:@selector #/performZoom:)))
+	  (t
+	   (call-next-method menu-item)))))
 
 (objc:defmethod (#/performClose: :void) ((self dpf-window) sender)
   (let ((close t))
@@ -235,6 +247,13 @@
       (setq close (#/windowShouldClose: (#/delegate self) sender)))
     (when close
       (#/close self))))
+
+(objc:defmethod (#/performMiniaturize: :void) ((self dpf-window) sender)
+  (#/setNeedsDisplay: (slot-value self 'titlebar-view) t)
+  (#/miniaturize: self sender))
+
+(objc:defmethod (#/performZoom: :void) ((self dpf-window) sender)
+  (#/zoom: self sender))
 
 (defun fade-titlebar (titlebar in-or-out)
   (unless (%null-ptr-p titlebar)
