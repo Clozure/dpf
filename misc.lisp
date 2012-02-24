@@ -12,5 +12,5 @@
 
 (defconstant $fullscreen-window-mask-bit 14)
 
- 
-
+(defloadvar *black-color* (#/retain (#/blackColor ns:ns-color)))
+(defloadvar *clear-color* (#/retain (#/clearColor ns:ns-color)))

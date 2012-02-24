@@ -706,11 +706,15 @@
 (objc:defmethod (#/windowWillEnterFullScreen: :void) 
                 ((self slideshow-window-controller) notification)
   (declare (ignore notification))
-  (hide-titlebar (#/window self) :now))
+  (let ((w (#/window self)))
+    (#/setBackgroundColor: w *black-color*)
+    (hide-titlebar (#/window self) :now)))
 
 (objc:defmethod (#/windowWillExitFullScreen: :void)
                 ((self slideshow-window-controller) notification)
-  (declare (ignore notification)))
+  (declare (ignore notification))
+  (let ((w (#/window self)))
+    (#/setBackgroundColor: w *clear-color*)))
 
 (objc:defmethod (#/windowDidExitFullScreen: :void)
                 ((self slideshow-window-controller) notification)
@@ -754,7 +758,6 @@
 
 (objc:defmethod #/initWithFrame: ((self slideshow-view) (frame #>NSRect))
   (call-next-method frame)
-  (#/setWantsLayer: self #$YES)
   (#/setTransition: self *slide-transition*)
   (let* ((ta (#/initWithRect:options:owner:userInfo:
 	      (#/alloc ns:ns-tracking-area)
@@ -800,11 +803,15 @@
 (objc:defmethod (#/mouseExited: :void) ((self slideshow-view) e)
   (declare (ignore e))
   (block method
-    (let* ((w (#/window self)))
+    (let* ((w (#/window self))
+	   (wc (#/windowController w))
+	   (active-p (#/isActive (#/sharedApplication ns:ns-application))))
       (when (fullscreen-window-p w)
 	(return-from method))
-      (hide-titlebar w)
-      (#/setAlphaValue: (#/animator w) (float 1.0 ccl::+cgfloat-zero+)))))
+      (when (and (slideshow-on-top-p wc)
+		 (not active-p))
+	(#/setAlphaValue: (#/animator w) (float 1.0 ccl::+cgfloat-zero+)))
+      (hide-titlebar w))))
 
 (objc:defmethod (#/dealloc :void) ((self slideshow-view))
   (with-slots (image-view tracking-area) self
@@ -823,7 +830,7 @@
                                                            #@"subviews"))))
 
 (objc:defmethod (#/drawRect: :void) ((self slideshow-view) (dirty #>NSRect))
-  (#/set (#/blackColor ns:ns-color))
+  (#/set *black-color*)
   (#_NSRectFill (#/bounds self)))
   
 (objc:defmethod (#/mouseDownCanMoveWindow #>BOOL) ((self slideshow-view))
@@ -1064,33 +1071,39 @@
 					  #$NSViewHeightSizable))
 	(#/setContentView: w v)
 	(#/release v))
-      ;; This will make all subviews of the content view layer-backed
-      ;; also.  We need this to get z-ordering of the titlebar and the
-      ;; content to be right, but it also messes up the highlighting
-      ;; of the window traffic light buttons.
-      ;(#/setWantsLayer: (#/contentView w) t)
-      (let* ((v (#/initWithFrame: (#/alloc (objc:@class "SlideshowView"))
-				  (#/bounds (#/contentView w)))))
-	(#/setAutoresizingMask: v (logior #$NSViewWidthSizable
-					  #$NSViewHeightSizable))
-	(#/addSubview: (#/contentView w) v)
-	;; add the window's titlebar as a sibling of the content, but
-	;; ordered above it.
-	(let ((titlebar (slot-value w 'titlebar-view))
-	      (content-rect (#/bounds v)))
-	  (ns:with-ns-rect (r)
-	    (setf (ns:ns-rect-x r) 0
-		  (ns:ns-rect-y r) (- (ns:ns-rect-height content-rect) 23)
-		  (ns:ns-rect-width r) (ns:ns-rect-width content-rect)
-		  (ns:ns-rect-height r) 23)
-	    (#/setFrame: titlebar r))
-	  (#/addSubview:positioned:relativeTo: (#/contentView w)
-					       titlebar
-					       #$NSWindowAbove
-					       v)
-	  (#/setHidden: titlebar t))
-	(#/release v)
-	(setf (slideshow-view wc) v))
+      ;; We want our picture window to have rounded corners.  Do this
+      ;; by creating a layer-hosting view and having it cover the
+      ;; window's content view.  The layer is configured to have the
+      ;; rounded corners and mask the sublayers.
+      (let ((mask-view (#/initWithFrame: (#/alloc (objc:@class "DPFMaskView"))
+					 (#/bounds (#/contentView w)))))
+	(#/setAutoresizingMask: mask-view (logior #$NSViewWidthSizable
+						  #$NSViewHeightSizable))
+	(#/addSubview: (#/contentView w) mask-view)
+	(#/release mask-view)
+	;; Now add further subviews to the mask-view.
+	(let* ((v (#/initWithFrame: (#/alloc (objc:@class "SlideshowView"))
+				    (#/bounds (#/contentView w)))))
+	  (#/setAutoresizingMask: v (logior #$NSViewWidthSizable
+					    #$NSViewHeightSizable))
+	  (#/addSubview: mask-view v)
+	  (setf (slideshow-view wc) v)
+	  (#/release v)
+	  ;; add the window's titlebar as a sibling of the content, but
+	  ;; ordered above it.
+	  (let ((titlebar (slot-value w 'titlebar-view))
+		(content-rect (#/bounds mask-view)))
+	    (ns:with-ns-rect (r)
+	      (setf (ns:ns-rect-x r) 0
+		    (ns:ns-rect-y r) (- (ns:ns-rect-height content-rect) 23)
+		    (ns:ns-rect-width r) (ns:ns-rect-width content-rect)
+		    (ns:ns-rect-height r) 23)
+	      (#/setFrame: titlebar r))
+	    (#/addSubview:positioned:relativeTo: (#/contentView w)
+						 titlebar
+						 #$NSWindowAbove
+						 v)
+	    (#/setHidden: titlebar t))))
       (maybe-show-titlebar w)
       (setf (slideshow-source wc) source)
       (when plist
