@@ -546,6 +546,7 @@
 (defclass slideshow-window-controller (ns:ns-window-controller)
   ((view :foreign-type :id :accessor slideshow-view)
    (timer :foreign-type :id :accessor slideshow-timer)
+   (remaining :accessor slideshow-remaining :initform nil)
    (duration :accessor slideshow-duration)
    (transition :accessor slideshow-transition)
    (order :accessor slideshow-order)
@@ -611,6 +612,33 @@
 		 self (objc:@selector #/nextSlide:) +null-ptr+ #$YES))
     (#/addTimer:forMode: (#/currentRunLoop ns:ns-run-loop)
 			 timer #&NSRunLoopCommonModes)))
+
+(objc:defmethod (#/resumeSlideshow: :void) ((self slideshow-window-controller)
+					   sender)
+  (#/stopTimer self)
+  (#/nextSlide: self sender)
+  (#/startTimer self))
+
+(objc:defmethod (#/toggleTimer :void) ((self slideshow-window-controller))
+  (with-slots (timer elapsed duration remaining) self
+    (if (%null-ptr-p timer)
+      (let* ((secs (duration-to-seconds duration)))
+	;; only wait the remaining time
+	(when remaining
+	  (setq secs remaining)
+	  (setq remaining nil))
+	(setq timer (#/timerWithTimeInterval:target:selector:userInfo:repeats:
+		     ns:ns-timer
+		     (float secs 0d0)
+		     self (objc:@selector #/resumeSlideshow:) +null-ptr+ #$NO))
+	(#/addTimer:forMode: (#/currentRunLoop ns:ns-run-loop)
+			     timer #&NSRunLoopCommonModes))
+      (progn
+	(when (#/isValid timer)
+	  (let* ((fire-date (#/fireDate timer))
+		 (time-left (#/timeIntervalSinceNow fire-date)))
+	    (setq remaining time-left)))
+	(#/stopTimer self)))))
 
 (objc:defmethod (#/windowWillClose: :void) ((self slideshow-window-controller) notification)
   (declare (ignore notification))
@@ -857,6 +885,8 @@
           ((= unichar #$NSRightArrowFunctionKey)
            (#/advanceSlideBy: wc 1)
            (#/setSlideshowDuration: wc (slideshow-duration wc)))
+	  ((= unichar (char-code #\space))
+	   (#/toggleTimer wc))
           (t 
            (call-next-method event)))))
   
