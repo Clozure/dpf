@@ -482,7 +482,8 @@
   (declare (ignore notification))
   ;;(#_NSLog #@"applicationDidBecomeActive:")
   (dolist (wc (slideshow-window-controllers))
-    (#/setAlphaValue: (#/window wc) (float 1.0 ccl::+cgfloat-zero+))))
+    (#/setAlphaValue: (#/animator (#/window wc))
+		      (float 1.0 ccl::+cgfloat-zero+))))
 
 (objc:defmethod (#/showPreferences: :void) ((self dpf-controller) sender)
   (declare (ignore sender))
