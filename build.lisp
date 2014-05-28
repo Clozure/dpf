@@ -15,7 +15,7 @@
 (defvar *resources-dir*)
 (defvar *macos-dir*)
 
-(defvar *ibtool-program* "/Developer/usr/bin/ibtool")
+(defvar *ibtool-program* "ibtool")
 
 (defparameter *resource-files* '("Credits.html"
 				 "help.html"
