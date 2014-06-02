@@ -1190,7 +1190,7 @@
 
 ;;; hack-o-rama.  better than having to alter the ide sources, though.
 
-(defclass dpf-application (gui::cocoa-application)
+(defclass dpf-application (gui::cocoa-ide)
   ())
 
 (defmethod toplevel-function ((a dpf-application) init-file)
@@ -1198,7 +1198,7 @@
   (process-run-function "initialize DPF"
 			#'(lambda ()
 			    (wait-on-semaphore
-			     gui::*cocoa-application-finished-launching*)
+			     gui::*cocoa-ide-finished-launching*)
 			    (objc:with-autorelease-pool 
 				(init-slideshow))))
   (call-next-method))
