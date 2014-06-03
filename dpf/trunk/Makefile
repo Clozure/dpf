@@ -9,7 +9,7 @@ NIBS=MainMenu.nib dpf-preferences.nib help.nib
 build:  nibs 
 	mkdir -p $(CONTENTS)
 	cp $(NIBS) $(CONTENTS)
-	~/Documents/Clozure/ccl-clean/dx86cl64 --no-init --load build.lisp
+	ccl --no-init --load build.lisp
 
 nibs: $(NIBS)
 	
