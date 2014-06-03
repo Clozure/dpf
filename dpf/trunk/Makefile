@@ -16,3 +16,6 @@ nibs: $(NIBS)
 
 clean:
 	rm -f $(NIBS)
+
+dist-clean: clean
+	rm -rf build
