@@ -665,6 +665,10 @@
                (image nil))
           (with-cfstring (s (native-translated-namestring pathname))
             (setq image (#/initWithContentsOfFile: (#/alloc ns:ns-image) s)))
+          (let ((rep (#/objectAtIndex: (#/representations image) 0)))
+            (when (typep rep 'ns:ns-bitmap-image-rep)
+              (ns:with-ns-size (s (#/pixelsWide rep) (#/pixelsHigh rep))
+                (#/setSize: image s))))
           (#/showImage: view image)
           (#/release image))))))
 
