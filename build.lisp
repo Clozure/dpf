@@ -8,14 +8,12 @@
 					  :defaults *load-truename*))
 (defparameter *build-dir* (merge-pathnames "build/" *source-dir*))
 
-(defparameter *dpf-files* '("package" "misc" "window" "dpf"))
+(defparameter *dpf-files* '("application" "package" "misc" "window" "dpf"))
 
 (defvar *bundle-dir*)
 (defvar *contents-dir*)
 (defvar *resources-dir*)
 (defvar *macos-dir*)
-
-(defvar *ibtool-program* "ibtool")
 
 (defparameter *resource-files* '("Credits.html"
 				 "help.html"
