@@ -1,5 +1,7 @@
 (in-package "CL-USER")
 
+#+32-bit-target (error "use a 64-bit lisp")
+
 (setq ccl:*save-source-locations* nil)
 
 (defparameter *source-dir* (make-pathname :name nil :type nil
