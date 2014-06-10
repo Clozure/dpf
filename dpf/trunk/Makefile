@@ -1,4 +1,5 @@
 CONTENTS="build/Picture Window.app/Contents/"
+RESOURCES=$(CONTENTS)/Resources
 BINARY="$(CONTENTS)/MacOS/Picture Window"
 
 %.nib : en.lproj/%.xib
@@ -7,12 +8,11 @@ BINARY="$(CONTENTS)/MacOS/Picture Window"
 NIBS=MainMenu.nib dpf-preferences.nib help.nib
 
 build:  nibs 
-	mkdir -p $(CONTENTS)
-	cp $(NIBS) $(CONTENTS)
+	mkdir -p $(RESOURCES)
+	cp $(NIBS) $(RESOURCES)
 	ccl --no-init --load build.lisp
 
 nibs: $(NIBS)
-	
 
 clean:
 	rm -f $(NIBS)

@@ -2,8 +2,6 @@
 
 (setq ccl:*save-source-locations* nil)
 
-(require "COCOA")
-
 (defparameter *source-dir* (make-pathname :name nil :type nil
 					  :defaults *load-truename*))
 (defparameter *build-dir* (merge-pathnames "build/" *source-dir*))
@@ -52,12 +50,14 @@
     (finish-output t)
     (save-application (merge-pathnames "ccl/Picture Window.image"
 				       *resources-dir*)
-		      :application-class (find-symbol "DPF-APPLICATION"
-						      "DPF"))))
+		      :application-class (find-symbol "COCOA-APPLICATION"
+						      "CCL"))))
 
-(require 'cocoa)
+(require 'objc-support)
 (ccl::define-special-objc-word "DPF")
 ;; Core Animation lives in QuartzCore
 (objc:load-framework "QuartzCore" :quartzcore)
 
+(load "ccl:mac-ui;cf-utils")
+(load "ccl:mac-ui;event-process")
 (build-dpf)

@@ -14,3 +14,10 @@
 
 (defloadvar *black-color* (#/retain (#/blackColor ns:ns-color)))
 (defloadvar *clear-color* (#/retain (#/clearColor ns:ns-color)))
+
+(defun shift-key-now-p ()
+  (let* ((event (#_CGEventCreate +null-ptr+))
+	 (flags (#_CGEventGetFlags event)))
+    (prog1
+	(logtest flags #$kCGEventFlagMaskShift)
+      (#_CFRelease event))))
