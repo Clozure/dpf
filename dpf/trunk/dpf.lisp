@@ -1010,9 +1010,9 @@
 							 #@""
 							 2))
     (#/setSubmenu:forItem: main-menu view-menu item)
-    (#/release view-menu)
     (setf (slot-value *dpf-controller* 'view-menu) view-menu)
-    (#/setDelegate: view-menu *dpf-controller*)))
+    (#/setDelegate: view-menu *dpf-controller*)
+    (#/release view-menu)))
 
 (defun make-albums-menu ()
   (let* ((albums (iphoto-library-albums *iphoto-library*))
@@ -1056,12 +1056,12 @@
 			   :album-data-pathname
 			   (merge-pathnames "AlbumData.xml" dir)))))
   (gui::execute-in-gui #'(lambda ()
-			   (retarget-preferences-menu-item)
-			   (make-view-menu)
+        		   (retarget-preferences-menu-item)
+        		   (make-view-menu)
                            (add-slideshow-menu)
-			   (configure-help-menu)
-			   (maybe-show-help-window)
-			   (restore-slideshow-state))))
+        		   (configure-help-menu)
+        		   (maybe-show-help-window)
+        		   (restore-slideshow-state))))
 
 (defun make-slideshow (assets title source &optional plist)
   (ns:with-ns-rect (r 0 0 500 310)
@@ -1194,15 +1194,15 @@
 
 ;;; hack-o-rama.  better than having to alter the ide sources, though.
 
-(defclass dpf-application (gui::cocoa-ide)
+(defclass dpf-application (ccl::cocoa-application)
   ())
 
 (defmethod toplevel-function ((a dpf-application) init-file)
   (declare (ignore init-file))
   (process-run-function "initialize DPF"
 			#'(lambda ()
-			    (wait-on-semaphore
-			     gui::*cocoa-ide-finished-launching*)
+			    ;; (wait-on-semaphore
+			    ;;  gui::*cocoa-ide-finished-launching*)
 			    (objc:with-autorelease-pool 
 				(init-slideshow))))
   (call-next-method))
