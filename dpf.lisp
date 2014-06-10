@@ -5,7 +5,7 @@
 	 (b (#/initWithFrame: (#/alloc ns:ns-button) r)))
     (#/setButtonType: b #$NSSwitchButton)
     (#/setTitle: b #@"Look for pictures in subfolders")
-    (gui::execute-in-gui
+    (ccl::call-in-initial-process
      #'(lambda ()
 	 (let ((op (#/openPanel ns:ns-open-panel)))
 	   (#/retain op)
@@ -457,7 +457,7 @@
 
 (defun restore-slideshow-state ()
   (let ((path (merge-pathnames *saved-state-filename* *saved-state-directory*)))
-    (if (gui::shift-key-now-p)
+    (if (shift-key-now-p)
       (ignore-errors (delete-file path))
       (when (probe-file path)
 	(with-open-file (input path)
@@ -1055,13 +1055,13 @@
 	    (make-instance 'iphoto-library
 			   :album-data-pathname
 			   (merge-pathnames "AlbumData.xml" dir)))))
-  (gui::execute-in-gui #'(lambda ()
-        		   (retarget-preferences-menu-item)
-        		   (make-view-menu)
-                           (add-slideshow-menu)
-        		   (configure-help-menu)
-        		   (maybe-show-help-window)
-        		   (restore-slideshow-state))))
+  (ccl::call-in-initial-process #'(lambda ()
+				    (retarget-preferences-menu-item)
+				    (make-view-menu)
+				    (add-slideshow-menu)
+				    (configure-help-menu)
+				    (maybe-show-help-window)
+				    (restore-slideshow-state))))
 
 (defun make-slideshow (assets title source &optional plist)
   (ns:with-ns-rect (r 0 0 500 310)
@@ -1085,7 +1085,7 @@
       (if (directory-pathname-p title)
 	(with-cfstring (s (native-translated-namestring title))
 	  (#/setTitleWithRepresentedFilename: w s)
-	  (#/addWindowsItem:title:filename: gui::*nsapp* w
+	  (#/addWindowsItem:title:filename: ccl::*nsapp* w
 					    (#/lastPathComponent s) nil)
 	  (#/setFrameAutosaveName: w s)
 	  (unless (#/setFrameUsingName: w s)
@@ -1093,7 +1093,7 @@
 	    (#/setFrameOrigin: w #&NSZeroPoint)))
 	(with-cfstring (s (native-translated-namestring title))
 	  (#/setTitle: w s)
-	  (#/addWindowsItem:title:filename: gui::*nsapp* w s nil)
+	  (#/addWindowsItem:title:filename: ccl::*nsapp* w s nil)
 	  (#/setFrameAutosaveName: w s)
 	  (unless (#/setFrameUsingName: w s)
 	    ;; lower left corner
@@ -1192,17 +1192,7 @@
 	(make-slideshow assets (iphoto-album-name album)
 			(iphoto-album-name album) plist)))))
 
-;;; hack-o-rama.  better than having to alter the ide sources, though.
 
-(defclass dpf-application (ccl::cocoa-application)
-  ())
 
-(defmethod toplevel-function ((a dpf-application) init-file)
-  (declare (ignore init-file))
-  (process-run-function "initialize DPF"
-			#'(lambda ()
-			    ;; (wait-on-semaphore
-			    ;;  gui::*cocoa-ide-finished-launching*)
-			    (objc:with-autorelease-pool 
-				(init-slideshow))))
-  (call-next-method))
+(defmethod ccl::initialize-user-interface :after ((a ccl::cocoa-application))
+  (init-slideshow))

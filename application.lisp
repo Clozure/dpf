@@ -1,21 +1,5 @@
 (in-package "CCL")
 
-(defclass cocoa-event-process (process)
-  ())
-
-(defmethod process-interrupt ((process cocoa-event-process) function
-			      &rest args)
-  (if (eq process *current-process*)
-    (apply function args)
-    (if (and *nsapp* (#/isRunning *nsapp*))
-      (queue-for-event-process #'(lambda () (apply function args)))
-      (call-next-method))))
-
-(defmethod process-exit-application :before ((process cocoa-event-process)
-					     (thunk t))
-  (when (eq process *initial-process*)
-    (#/terminate: *nsapp* +null-ptr+)))
-
 (defclass cocoa-ui-object (ui-object)
   ())
 
@@ -90,7 +74,6 @@
 	app))))
 
 (defun become-foreground-application ()
-  #+apple-objc
   (rlet ((psn #>ProcessSerialNumber))
     (#_GetCurrentProcess psn)
     (#_TransformProcessType psn #$kProcessTransformToForegroundApplication)))
