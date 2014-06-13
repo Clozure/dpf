@@ -600,7 +600,6 @@
 (objc:defmethod (#/stopTimer :void) ((self slideshow-window-controller))
   (with-slots (timer) self
     (#/invalidate timer)
-    (#/release timer)
     (setq timer +null-ptr+)))
 
 (objc:defmethod (#/startTimer :void) ((self slideshow-window-controller))
