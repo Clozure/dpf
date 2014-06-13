@@ -640,7 +640,7 @@
 	    (setq remaining time-left)))
 	(#/stopTimer self)))))
 
-(objc:defmethod (#/windowDidClose: :void) ((self slideshow-window-controller) notification)
+(objc:defmethod (#/windowWillClose: :void) ((self slideshow-window-controller) notification)
   (declare (ignore notification))
   ;; This timer retains us (its target), so get rid of it here.
   (#/stopTimer self)
