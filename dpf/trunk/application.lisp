@@ -70,7 +70,7 @@
 	  (error "Could not create shared instance of ~s" (%get-cfstring
 							   classname)))
 	(unless (%null-ptr-p mainnibname)
-          (#/loadNibNamed:owner:topLevelObjects: bundle mainnibname app +null-ptr+))
+          (#/loadNibNamed:owner: ns:ns-bundle mainnibname app))
 	app))))
 
 (defun become-foreground-application ()
