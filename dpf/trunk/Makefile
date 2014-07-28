@@ -9,6 +9,7 @@ BINARY="$(CONTENTS)/MacOS/Picture Window"
 NIBS=MainMenu.nib dpf-preferences.nib help.nib
 
 build:  nibs 
+	iconutil -c icns app.iconset
 	mkdir -p $(RESOURCES)
 	cp $(NIBS) $(RESOURCES)
 	$(CCL) --no-init --load build.lisp
@@ -16,7 +17,7 @@ build:  nibs
 nibs: $(NIBS)
 
 clean:
-	rm -f $(NIBS)
+	rm -f $(NIBS) app.icns
 
 dist-clean: clean
 	rm -rf build
