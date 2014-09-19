@@ -246,8 +246,8 @@
   (print-unreadable-object (x stream :type t :identity t)
     (format stream "~s" (asset-name x))))
 
-(defun make-asset (pathname)
-  (make-instance 'asset :pathname pathname))
+(defclass iphoto-asset (asset)
+  ())
 
 (defclass iphoto-library ()
   ((master-image-table)
@@ -270,7 +270,7 @@
 	     (path (#_CFDictionaryGetValue image-dict #@"ImagePath"))
 	     (caption (#_CFDictionaryGetValue image-dict #@"Caption"))
 	     (date (#_CFDictionaryGetValue image-dict #@"DateAsTimerInterval"))
-	     (asset (make-instance 'asset)))
+	     (asset (make-instance 'iphoto-asset)))
 	(setf (asset-pathname asset) (%get-cfstring path)
 	      (asset-name asset) (%get-cfstring caption))
 	(rlet ((d :double))
@@ -591,6 +591,10 @@
 		     (#_CGWindowLevelForKey #$kCGFloatingWindowLevelKey)
 		     (#_CGWindowLevelForKey #$kCGNormalWindowLevelKey))))))
 
+(defmethod slideshow-current-asset ((x slideshow-window-controller))
+  (with-slots (assets current-index) x
+    (elt assets current-index)))
+
 (objc:defmethod (#/dealloc :void) ((self slideshow-window-controller))
   ;;(#_NSLog #@"slideshow-window-controller dealloc")
   (objc:remove-lisp-slots self)
@@ -675,6 +679,23 @@
   (declare (ignore timer))
   (#/advanceSlideBy: self 1))
 
+(objc:defmethod (#/showInFinder: :void) ((self slideshow-window-controller)
+					 sender)
+  (declare (ignore sender))
+  (let ((p (asset-pathname (slideshow-current-asset self))))
+    (when (pathnamep p)
+      (with-cfstring (s (native-translated-namestring p))
+	(let* ((workspace (#/sharedWorkspace ns:ns-workspace))
+	       (file (#/stringByResolvingSymlinksInPath s))
+	       (dir (#/stringByDeletingLastPathComponent file)))
+	  (#/selectFile:inFileViewerRootedAtPath: workspace file dir))))))
+
+(objc:defmethod (#/validateMenuItem: #>BOOL) ((self slideshow-window-controller)
+					      item)
+  (cond ((eql (#/action item) (objc:@selector #/showInFinder:))
+	 (not (typep (slideshow-current-asset self) 'iphoto-asset)))
+	(t t)))
+    
 ;;; These next three methods are action methods that are invoked by
 ;;; selecting menu items.  The actions are nil-targeted so that they
 ;;; will apply to the current slideshow window.  (A window's window
@@ -756,6 +777,16 @@
 (defclass dpf-image-view (ns:ns-image-view)
   ()
   (:metaclass ns:+ns-object))
+
+(objc:defmethod #/initWithFrame: ((self dpf-image-view) (frame #>NSRect))
+  (call-next-method frame)
+  (let ((menu (#/initWithTitle: (#/alloc ns:ns-menu) #@"image view menu"))
+        (item nil))
+    (declare (ignorable item))
+    (setq item (#/addItemWithTitle:action:keyEquivalent: menu #@"Show in Finder..." (objc:@selector #/showInFinder:) #@""))
+    (#/setMenu: self menu)
+    (#/release menu))
+  self)
 
 (objc:defmethod (#/mouseDownCanMoveWindow #>BOOL) ((self dpf-image-view))
   #$YES)
