@@ -778,16 +778,6 @@
   ()
   (:metaclass ns:+ns-object))
 
-(objc:defmethod #/initWithFrame: ((self dpf-image-view) (frame #>NSRect))
-  (call-next-method frame)
-  (let ((menu (#/initWithTitle: (#/alloc ns:ns-menu) #@"image view menu"))
-        (item nil))
-    (declare (ignorable item))
-    (setq item (#/addItemWithTitle:action:keyEquivalent: menu #@"Show in Finder..." (objc:@selector #/showInFinder:) #@""))
-    (#/setMenu: self menu)
-    (#/release menu))
-  self)
-
 (objc:defmethod (#/mouseDownCanMoveWindow #>BOOL) ((self dpf-image-view))
   #$YES)
   
@@ -930,7 +920,12 @@
     (format t "~&hey, no image here.")
     (let* ((bounds (#/bounds self))
 	   (iv (#/initWithFrame: (#/alloc (objc:@class "DPFImageView"))
-				 bounds)))
+				 bounds))
+	   (menu (#/initWithTitle: (#/alloc ns:ns-menu) #@"image view menu"))
+	   (item (#/addItemWithTitle:action:keyEquivalent: menu #@"Show in Finder..." (objc:@selector #/showInFinder:) #@"")))
+      (#/setTarget: item (#/windowController (#/window self)))
+      (#/setMenu: iv menu)
+      (#/release menu)
       (#/setImage: iv image)
       (#/setAutoresizingMask: iv (logior #$NSViewWidthSizable
 					 #$NSViewHeightSizable))
