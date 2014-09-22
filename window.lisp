@@ -3,15 +3,35 @@
 ;;; A view filled with black, with rounded corners.  This is a slideshow
 ;;; window's content view.
 (defclass dpf-black-view (ns:ns-view)
-  ()
+  ((background-color :foreign-type :id))
   (:metaclass ns:+ns-object))
+
+(objc:defmethod #/initWithFrame: ((self dpf-black-view) (frame #>NSRect))
+  (call-next-method frame)
+  (#/setWantsLayer: self t)
+  (#/setBackgroundColor: self *clear-color*)
+  self)
+
+(objc:defmethod #/backgroundColor ((self dpf-black-view))
+  (slot-value self 'background-color))
+
+(objc:defmethod (#/setBackgroundColor: :void) ((self dpf-black-view) color)
+  (with-slots (background-color) self
+    (unless (eql color background-color)
+      (#/release background-color)
+      (setf background-color (#/retain color))
+      (#/setNeedsDisplay: self t))))
+
+(objc:defmethod (#/dealloc :void) ((self dpf-black-view))
+  (#/release (slot-value self 'background-color))
+  (call-next-method))
 
 (objc:defmethod (#/drawRect: :void) ((self dpf-black-view) (dirty #>NSRect))
   (let ((p (#/bezierPath ns:ns-bezier-path))
 	(r (cgfloat 5)))
     (#/appendBezierPathWithRoundedRect:xRadius:yRadius: p (#/bounds self) r r)
     (#/addClip p)
-    (#/set *clear-color*)
+    (#/set (#/backgroundColor self))
     (#_NSRectFill (#/bounds self))))
 
 (defclass dpf-mask-view (ns:ns-view)
@@ -258,8 +278,12 @@
 (defun fade-titlebar (titlebar in-or-out)
   (unless (%null-ptr-p titlebar)
     (ecase in-or-out
-      (:in (#/setHidden: (#/animator titlebar) nil))
-      (:out (#/setHidden: (#/animator titlebar) t)))))
+      (:in (#/setHidden: (#/animator titlebar) nil)
+	   (#/setBackgroundColor: (#/contentView (#/window titlebar))
+				  *black-color*))
+      (:out (#/setHidden: (#/animator titlebar) t)
+	    (#/setBackgroundColor: (#/contentView (#/window titlebar))
+				   *clear-color*)))))
 
 (defun find-titlebar (w)
   (#/viewWithTag: (#/contentView w) $black-titlebar-view-tag))
