@@ -893,7 +893,7 @@
                                                            #@"subviews"))))
 
 (objc:defmethod (#/drawRect: :void) ((self slideshow-view) (dirty #>NSRect))
-  (#/set *black-color*)
+  (#/set *clear-color*)
   (#_NSRectFill (#/bounds self)))
   
 (objc:defmethod (#/mouseDownCanMoveWindow #>BOOL) ((self slideshow-view))
@@ -928,14 +928,18 @@
 (objc:defmethod (#/showImage: :void) ((self slideshow-view) image)
   (if (%null-ptr-p image)
     (format t "~&hey, no image here.")
-    (let ((iv (#/initWithFrame: (#/alloc (objc:@class "DPFImageView"))
-				(#/bounds self))))
+    (let* ((bounds (#/bounds self))
+	   (iv (#/initWithFrame: (#/alloc (objc:@class "DPFImageView"))
+				 bounds)))
       (#/setImage: iv image)
       (#/setAutoresizingMask: iv (logior #$NSViewWidthSizable
 					 #$NSViewHeightSizable))
       (if (and (not (%null-ptr-p (image-view self)))
                (not (%null-ptr-p iv)))
-	(#/replaceSubview:with: (#/animator self) (image-view self) iv)
+	(progn
+	  (#/replaceSubview:with: (#/animator self) (image-view self) iv)
+	  (#/setContentSize: (#/animator (#/window self))
+			     (pref bounds #>NSRect.size)))
         (progn
           (unless (%null-ptr-p (image-view self))
             (#/removeFromSuperview (#/animator (image-view self))))
