@@ -549,6 +549,7 @@
    (timer :foreign-type :id :accessor slideshow-timer)
    (remaining :accessor slideshow-remaining :initform nil)
    (duration :accessor slideshow-duration)
+   (user-paused-p :initform nil :accessor slideshow-user-paused-p)
    (transition :accessor slideshow-transition)
    (order :accessor slideshow-order)
    (on-top-p :reader slideshow-on-top-p)
@@ -617,13 +618,13 @@
     (#/addTimer:forMode: (#/currentRunLoop ns:ns-run-loop)
 			 timer #&NSRunLoopCommonModes)))
 
-(objc:defmethod (#/resumeSlideshow: :void) ((self slideshow-window-controller)
-					   sender)
+(objc:defmethod (#/resumeSlideshowHelper: :void)
+    ((self slideshow-window-controller) timer)
   (#/stopTimer self)
-  (#/nextSlide: self sender)
+  (#/nextSlide: self timer)
   (#/startTimer self))
 
-(objc:defmethod (#/toggleTimer :void) ((self slideshow-window-controller))
+(objc:defmethod (#/resumeSlideshow :void) ((self slideshow-window-controller))
   (with-slots (timer elapsed duration remaining) self
     (if (%null-ptr-p timer)
       (let* ((secs (duration-to-seconds duration)))
@@ -634,15 +635,19 @@
 	(setq timer (#/timerWithTimeInterval:target:selector:userInfo:repeats:
 		     ns:ns-timer
 		     (float secs 0d0)
-		     self (objc:@selector #/resumeSlideshow:) +null-ptr+ #$NO))
+		     self (objc:@selector #/resumeSlideshowHelper:)
+		     +null-ptr+
+		     #$NO))
 	(#/addTimer:forMode: (#/currentRunLoop ns:ns-run-loop)
-			     timer #&NSRunLoopCommonModes))
-      (progn
-	(when (#/isValid timer)
-	  (let* ((fire-date (#/fireDate timer))
-		 (time-left (#/timeIntervalSinceNow fire-date)))
-	    (setq remaining time-left)))
-	(#/stopTimer self)))))
+			     timer #&NSRunLoopCommonModes)))))
+
+(objc:defmethod (#/pauseSlideshow :void) ((self slideshow-window-controller))
+  (with-slots (timer remaining) self
+    (when (#/isValid timer)
+      (let* ((fire-date (#/fireDate timer))
+	     (time-left (#/timeIntervalSinceNow fire-date)))
+	(setq remaining time-left)))
+    (#/stopTimer self)))
 
 (objc:defmethod (#/windowWillClose: :void) ((self slideshow-window-controller) notification)
   (declare (ignore notification))
@@ -690,9 +695,20 @@
 	       (dir (#/stringByDeletingLastPathComponent file)))
 	  (#/selectFile:inFileViewerRootedAtPath: workspace file dir))))))
 
+(objc:defmethod (#/openInPreview: :void) ((self slideshow-window-controller)
+					 sender)
+  (declare (ignore sender))
+  (let ((p (asset-pathname (slideshow-current-asset self))))
+    (when (pathnamep p)
+      (with-cfstring (s (native-translated-namestring p))
+	(let* ((workspace (#/sharedWorkspace ns:ns-workspace))
+	       (file (#/stringByResolvingSymlinksInPath s)))
+	  (#/openFile:withApplication: workspace file #@"Preview.app"))))))
+
 (objc:defmethod (#/validateMenuItem: #>BOOL) ((self slideshow-window-controller)
 					      item)
-  (cond ((eql (#/action item) (objc:@selector #/showInFinder:))
+  (cond ((or (eql (#/action item) (objc:@selector #/showInFinder:))
+	     (eql (#/action item) (objc:@selector #/openInPreview:)))
 	 (not (typep (slideshow-current-asset self) 'iphoto-asset)))
 	(t t)))
     
@@ -773,6 +789,18 @@
                 ((self slideshow-window-controller) notification)
   (declare (ignore notification))
   (maybe-show-titlebar (#/window self)))
+
+(objc:defmethod (#/menuWillOpen: :void) ((self slideshow-window-controller)
+					 menu)
+  (declare (ignore menu))
+  (unless (slideshow-user-paused-p self)
+    (#/pauseSlideshow self)))
+
+(objc:defmethod (#/menuDidClose: :void) ((self slideshow-window-controller)
+					 menu)
+  (declare (ignore menu))
+  (unless (slideshow-user-paused-p self)
+    (#/resumeSlideshow self)))
 
 (defclass dpf-image-view (ns:ns-image-view)
   ()
@@ -911,7 +939,13 @@
            (#/advanceSlideBy: wc 1)
            (#/setSlideshowDuration: wc (slideshow-duration wc)))
 	  ((= unichar (char-code #\space))
-	   (#/toggleTimer wc))
+	   (if (slideshow-paused-by-user-p wc)
+	     (progn
+	       (setf (slideshow-paused-by-user-p wc) nil)
+	       (#/resumeSlideshow wc))
+	     (progn
+	       (setf (slideshow-paused-by-user-p) t)
+	       (#/pauseSlideshow wc))))
           (t 
            (call-next-method event)))))
   
@@ -922,9 +956,14 @@
 	   (iv (#/initWithFrame: (#/alloc (objc:@class "DPFImageView"))
 				 bounds))
 	   (menu (#/initWithTitle: (#/alloc ns:ns-menu) #@"image view menu"))
-	   (item (#/addItemWithTitle:action:keyEquivalent: menu #@"Show in Finder..." (objc:@selector #/showInFinder:) #@"")))
-      (#/setTarget: item (#/windowController (#/window self)))
+	   (wc (#/windowController (#/window self)))
+	   (item nil))
+      (setq item (#/addItemWithTitle:action:keyEquivalent: menu #@"Show in Finder..." (objc:@selector #/showInFinder:) #@""))
+      (#/setTarget: item wc)
+      (setq item (#/addItemWithTitle:action:keyEquivalent: menu #@"Open in Preview..." (objc:@selector #/openInPreview:) #@""))
+      (#/setTarget: item wc)
       (#/setMenu: iv menu)
+      (#/setDelegate: menu wc)
       (#/release menu)
       (#/setImage: iv image)
       (#/setAutoresizingMask: iv (logior #$NSViewWidthSizable
