@@ -576,6 +576,7 @@
 			      ;; NSWindowCollectionBehaviorFullScreenPrimary
 			      (logior (ash 1 7)
 				      #$NSWindowCollectionBehaviorManaged)))
+    (#/setHasShadow: (#/window x) nil)
     (when on-top-p
       (#/setLevel: (#/window x)
 		   (#_CGWindowLevelForKey #$kCGFloatingWindowLevelKey)))))
