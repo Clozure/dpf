@@ -940,12 +940,12 @@
            (#/advanceSlideBy: wc 1)
            (#/setSlideshowDuration: wc (slideshow-duration wc)))
 	  ((= unichar (char-code #\space))
-	   (if (slideshow-paused-by-user-p wc)
+	   (if (slideshow-user-paused-p wc)
 	     (progn
-	       (setf (slideshow-paused-by-user-p wc) nil)
+	       (setf (slideshow-user-paused-p wc) nil)
 	       (#/resumeSlideshow wc))
 	     (progn
-	       (setf (slideshow-paused-by-user-p) t)
+	       (setf (slideshow-user-paused-p wc) t)
 	       (#/pauseSlideshow wc))))
           (t 
            (call-next-method event)))))
