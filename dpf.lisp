@@ -1,6 +1,6 @@
 (in-package "DPF")
 
-(defun choose-directory-dialog (&optional dir)
+(defun dpf-choose-directory-dialog (&optional dir)
   (let* ((r (ns:make-ns-rect 0 0 200 25))
 	 (b (#/initWithFrame: (#/alloc ns:ns-button) r)))
     (#/setButtonType: b #$NSSwitchButton)
@@ -246,84 +246,6 @@
   (print-unreadable-object (x stream :type t :identity t)
     (format stream "~s" (asset-name x))))
 
-(defclass iphoto-asset (asset)
-  ())
-
-(defclass iphoto-library ()
-  ((master-image-table)
-   (albums :initarg :albums :initform nil :accessor iphoto-library-albums)
-   (album-data-write-date)
-   (album-data-pathname :initarg :album-data-pathname
-			:accessor iphoto-library-album-data-pathname)))
-
-(defconstant $cfdate-epoch (encode-universal-time 0 0 0 1 1 2001 0))
-
-(defvar *iphoto-library* nil)
-
-(defmethod load-master-image-table ((x iphoto-library) cfdict)
-  (let ((keys (#/allKeys cfdict))
-	(count (#_CFDictionaryGetCount cfdict))
-	(hash (make-hash-table :test 'equal)))
-    (dotimes (i count)
-      (let* ((key (#_CFArrayGetValueAtIndex keys i))
-	     (image-dict (#_CFDictionaryGetValue cfdict key))
-	     (path (#_CFDictionaryGetValue image-dict #@"ImagePath"))
-	     (caption (#_CFDictionaryGetValue image-dict #@"Caption"))
-	     (date (#_CFDictionaryGetValue image-dict #@"DateAsTimerInterval"))
-	     (asset (make-instance 'iphoto-asset)))
-	(setf (asset-pathname asset) (%get-cfstring path)
-	      (asset-name asset) (%get-cfstring caption))
-	(rlet ((d :double))
-	  (#_CFNumberGetValue date #$kCFNumberDoubleType d)
-	  (setf (asset-date asset) (round (+ (%get-double-float d)
-					     $cfdate-epoch))))
-	(setf (gethash (%get-cfstring key) hash) asset)))
-    (setf (slot-value x 'master-image-table) hash)))
-
-(defmethod load-albums ((x iphoto-library) cfarray)
-  (if (%null-ptr-p cfarray)
-    (setf (slot-value x 'albums) nil)
-    (let ((count (#_CFArrayGetCount cfarray)))
-      (if (<= count 0)
-	(setf (slot-value x 'albums) nil)
-	(with-slots (master-image-table albums) x
-	  (dotimes (i count)
-	    (let* ((dict (#_CFArrayGetValueAtIndex cfarray i))
-		   (name (#_CFDictionaryGetValue dict #@"AlbumName"))
-		   (array (#_CFDictionaryGetValue dict #@"KeyList"))
-		   (album (make-instance 'iphoto-album
-					 :name (%get-cfstring name))))
-	      (dotimes (i (#_CFArrayGetCount array))
-		(let ((k (%get-cfstring (#_CFArrayGetValueAtIndex array i))))
-		  (push (gethash k master-image-table)
-			(iphoto-album-photos album))))
-	      (push album albums)))
-	  (setq albums (nreverse albums)))))))
-
-(defmethod load-iphoto-data ((x iphoto-library) pathname)
-  (when (probe-file pathname)
-    (setf (slot-value x 'album-data-write-date) (file-write-date pathname))
-    (with-cfstring (p (native-translated-namestring pathname))
-      (let* ((d (#/dictionaryWithContentsOfFile: ns:ns-dictionary p))
-	     (cfdict (#_CFDictionaryGetValue d #@"Master Image List"))
-	     (cfarray (#_CFDictionaryGetValue d #@"List of Albums")))
-	(load-master-image-table x cfdict)
-	(load-albums x cfarray)))))
-
-(defmethod initialize-instance :after ((x iphoto-library) &rest initargs)
-  (declare (ignore initargs))
-  (load-iphoto-data x (slot-value x 'album-data-pathname)))
-
-
-(defclass iphoto-album ()
-  ((name :initarg :name :accessor iphoto-album-name)
-   (photos :initarg :photos :initform nil :accessor iphoto-album-photos)))
-
-(defmethod print-object ((x iphoto-album) stream)
-  (print-unreadable-object (x stream :type t :identity t)
-    (format stream "~s" (iphoto-album-name x))))
-
-
 (defvar *dpf-controller*)
 (defvar *preferences-controller* +null-ptr+)
 
@@ -365,22 +287,13 @@
 	(plist nil))
     (cond ((= tag $from-folder-tag)
 	   (multiple-value-bind (dir include-subdirs)
-	       (choose-directory-dialog)
+	       (dpf-choose-directory-dialog)
 	     (when include-subdirs
 	       (setq plist (list :include-subdirs t)))
 	     (when dir
 	       (make-slideshow-from-folder dir plist))))
 	  ((= tag $from-iphoto-tag)
 	   (#_NSBeep)))))
-
-(objc:defmethod (#/newSlideshowFromAlbum: :void) ((self dpf-controller) sender)
-  (let* ((title (%get-cfstring (#/title sender)))
-	 (album (find title (iphoto-library-albums *iphoto-library*)
-		      :key #'iphoto-album-name
-		      :test #'string=)))
-    (if album
-      (make-slideshow-from-album album)
-      (#_NSBeep))))
 
 (objc:defmethod (#/showHelpWindow: :void) ((self dpf-controller) sender)
   (declare (ignore sender))
@@ -448,12 +361,7 @@
 			 :current-index current-index
 			 :include-subdirs include-subdirs)))
 	(if (pathnamep source)
-	  (make-slideshow-from-folder source plist)
-	  (let ((album (find source (iphoto-library-albums *iphoto-library*)
-			     :key #'iphoto-album-name
-			     :test #'string=)))
-	    (when album
-	      (make-slideshow-from-album album plist))))))))
+	  (make-slideshow-from-folder source plist))))))
 
 (defun restore-slideshow-state ()
   (let ((path (merge-pathnames *saved-state-filename* *saved-state-directory*)))
@@ -710,7 +618,10 @@
 					      item)
   (cond ((or (eql (#/action item) (objc:@selector #/showInFinder:))
 	     (eql (#/action item) (objc:@selector #/openInPreview:)))
-	 (not (typep (slideshow-current-asset self) 'iphoto-asset)))
+	 ;; This used to check if the currently displayed thing was from
+	 ;; iPhoto, and wouldn't allow it to be displayed as a regular
+	 ;; file if so.
+	 t)
 	(t t)))
     
 ;;; These next three methods are action methods that are invoked by
@@ -995,15 +906,6 @@
                 0))
     (#/setTag: item $from-folder-tag)
     (#/setTarget: item *dpf-controller*)
-    (when *iphoto-library*
-      (setq item (#/insertItemWithTitle:action:keyEquivalent:atIndex:
-		  file-menu
-		  #@"New Slideshow From iPhoto Album"
-		  +null-ptr+
-		  #@""
-		  1))
-      (#/setTag: item $from-iphoto-tag)
-      (#/setSubmenu: item (make-albums-menu)))
     #+dpf-in-ide
     (progn
       (setq item (#/insertItemWithTitle:action:keyEquivalent:atIndex:
@@ -1083,20 +985,6 @@
     (#/setDelegate: view-menu *dpf-controller*)
     (#/release view-menu)))
 
-(defun make-albums-menu ()
-  (let* ((albums (iphoto-library-albums *iphoto-library*))
-	 (names (mapcar #'iphoto-album-name albums))
-	 (menu (make-instance 'ns:ns-menu :with-title #@"iPhoto Albums")))
-    (dolist (n names)
-      (with-cfstring (s n)
-	(let ((item (#/addItemWithTitle:action:keyEquivalent:
-		     menu
-		     s
-		     (objc:@selector #/newSlideshowFromAlbum:)
-		     #@"")))
-	  (#/setTarget: item *dpf-controller*))))
-    (#/autorelease menu)))
-
 (defconstant $prefs-item-tag 100)
 
 (defun retarget-preferences-menu-item ()
@@ -1106,24 +994,9 @@
     (#/setAction: prefs-item (objc:@selector #/showPreferences:))
     (#/setTarget: prefs-item *dpf-controller*)))
 
-(defun iphoto-root-directory ()
-  (let ((p (#_CFPreferencesCopyAppValue #@"RootDirectory"
-					#@"com.apple.iPhoto")))
-    (if (%null-ptr-p p)
-      (probe-file "~/Pictures/iPhoto Library/")
-      (prog1
-	  (probe-file (%get-cfstring p))
-	(#_CFRelease p)))))
-
 (defun init-slideshow ()
   (init-supported-image-types)
   (init-dpf-controller)
-  (let ((dir (iphoto-root-directory)))
-    (when dir
-      (setq *iphoto-library*
-	    (make-instance 'iphoto-library
-			   :album-data-pathname
-			   (merge-pathnames "AlbumData.xml" dir)))))
   (ccl::call-in-initial-process #'(lambda ()
 				    (retarget-preferences-menu-item)
 				    (make-view-menu)
@@ -1247,21 +1120,6 @@
 					    :date (file-write-date p)))
 		  image-pathnames)
 	(make-slideshow assets dir dir plist)))))
-
-(defun make-slideshow-from-album (album &optional plist)
-  (let ((photos (iphoto-album-photos album)))
-    (if (null photos)
-      (unless *restoring-slideshow-state*
-	(let ((message (format nil "No photos were found in the album \"~a\""
-			       (iphoto-album-name album))))
-	  (with-cfstring (m message)
-	    (#_NSRunAlertPanel #@"No Images Found" m
-			       #@"OK" +null-ptr+ +null-ptr+))))
-      (let ((assets (coerce photos 'vector)))
-	(make-slideshow assets (iphoto-album-name album)
-			(iphoto-album-name album) plist)))))
-
-
 
 (defmethod ccl::initialize-user-interface :after ((a ccl::cocoa-application))
   (init-slideshow))
