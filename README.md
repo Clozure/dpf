@@ -1,5 +1,5 @@
 # Picture Window
-Picture Window is a standalone OS X application written in Clozure CL.  It has been available on Mac App Store in the past, but is currently not on sale there.
+Picture Window is a standalone OS X application written in Clozure CL.  It has been available on the Mac App Store in the past, but is currently not on sale there.
 
 ## Marketing Description
 
