@@ -303,7 +303,7 @@
   (#/showWindow: *help-window-controller* +null-ptr+))
 
 (defparameter *saved-state-directory*
-  #p"home:Library;Application Support;com.clozure.PictureWindow;")
+  #p"home:Library;Application Support;com.clozure.store.PictureWindow;")
 
 (defparameter *saved-state-filename* "state.sexp")
 
