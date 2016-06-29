@@ -1,5 +1,7 @@
 # Picture Window
-Picture Window is a standalone OS X application written in Clozure CL.  It has been available on the Mac App Store in the past, but is currently not on sale there.  We initially called it Digital Picture Frame, which is where the `dpf` name comes from.
+Picture Window is a standalone OS X application written in Clozure CL.  It is available for on the Mac App Store.  The link is  https://itunes.apple.com/us/app/picture-window/id507262984?mt=12
+
+We initially called it Digital Picture Frame, which is where the `dpf` name comes from.
 
 ## Marketing Description
 
